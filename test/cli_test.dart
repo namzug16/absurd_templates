@@ -187,12 +187,13 @@ error: Undefined class 'Strng'.
       expect(File('${projectDirectory.path}/out.dart').existsSync(), isFalse);
     });
 
-    test('checks only the given files', () async {
+    test('checks only the given files, once each', () async {
       writeProjectFile('components/broken.html', '{{ missing }}');
 
       final result = await _runAbs(projectDirectory, [
         'check',
         'components/ok.html',
+        './components/ok.html',
       ]);
 
       expect(result.stdout, 'abs check: 1 template OK\n');

@@ -109,7 +109,7 @@ bool _startsWithGeneratedHeader(File file) {
 Future<int> _check(_Project project, List<String> files) async {
   final checkedTemplatePaths = files.isEmpty
       ? project.templateSourceByPath.keys.toList()
-      : [for (final file in files) _templatePathOf(project, file)];
+      : {for (final file in files) _templatePathOf(project, file)}.toList();
   final diagnostics = await checkTemplates(
     templateSourceByPath: project.templateSourceByPath,
     checkedTemplatePaths: checkedTemplatePaths,
