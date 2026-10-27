@@ -118,6 +118,16 @@ final page = Html.layout.primary(
 final String html = page.toHtml();
 ```
 
+All templates go into that one file, which can grow to thousands of lines.
+It is output, not something to read: templates and `abs check` errors are
+where you work. To keep it out of the way in GitHub pull requests (collapsed
+in diffs, left out of language stats), mark it as generated in
+`.gitattributes` at the root of your repository:
+
+```
+lib/generated/html.dart linguist-generated=true
+```
+
 ## Example
 
 [`examples/`](examples) has components, their generated
