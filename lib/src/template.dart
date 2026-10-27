@@ -10,6 +10,10 @@ const reservedDartNames = {
 };
 
 final _identifierPattern = RegExp(r'^[a-zA-Z][a-zA-Z0-9_]*$');
+// A variable followed by fields: user, user.name, pair.$1.
+final _valuePathPattern = RegExp(
+  r'^[a-zA-Z][a-zA-Z0-9_]*(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|\$[0-9]+))*$',
+);
 final _directiveStartPattern = RegExp(r'<!--|\{\{|</?x-');
 const _attributeSource =
     r'''[^\s=/>"']+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?''';
@@ -47,7 +51,10 @@ const _nameRules =
 CompiledTemplate compileTemplate(String source, String templatePath) {
   final body = StringBuffer();
   final pendingText = StringBuffer();
-  final openDirectives = <({String name, String? indexVariable, int offset})>[];
+  final openDirectives =
+      <({String name, String? indexVariable, int offset, int variableCount})>[];
+  // Props, then the variables of each enclosing <x-for>, innermost last.
+  final variablesInScope = <String>[];
   final lineStartOffsets = [0, for (final m in '\n'.allMatches(source)) m.end];
   var parameters = '';
   var position = 0;
@@ -109,6 +116,28 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
       ..clear()
       ..write(text.replaceFirst(_trailingIndentationPattern, ''));
     return restOfLine.end;
+  }
+
+  /// Fails unless [value] is a declared variable, optionally followed by
+  /// fields; templates hold no other logic.
+  void requireValuePath(String value, int offset, String where) {
+    if (!_valuePathPattern.hasMatch(value)) {
+      fail(
+        '$where only accepts a variable or its fields, like user or '
+        'user.name, got "$value"; compute anything else in Dart and pass it '
+        'in as a prop',
+        offset,
+      );
+    }
+    final variable = value.split('.').first;
+    if (!variablesInScope.contains(variable)) {
+      fail(
+        '"$variable" is not declared; declare it in <x-props> or as an '
+        '<x-for> variable. '
+        '${variablesInScope.isEmpty ? 'Nothing is declared here' : 'Declared here: ${variablesInScope.toSet().join(', ')}'}',
+        offset,
+      );
+    }
   }
 
   void rejectUnknownAttributes(
@@ -193,15 +222,14 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
         final expression = source.substring(match.end, end).trim();
         if (expression.isEmpty) {
           fail(
-            '"{{ }}" is empty; put a Dart expression inside, e.g. {{ title }}',
+            '"{{ }}" is empty; put a variable inside, e.g. {{ title }}',
             offset,
           );
         }
+        final expressionOffset = source.indexOf(expression, match.end);
+        requireValuePath(expression, expressionOffset, '"{{ }}"');
         flushText();
-        emit(
-          '_\$write(\$out, $expression);',
-          sourceOffset: source.indexOf(expression, match.end),
-        );
+        emit('_\$write(\$out, $expression);', sourceOffset: expressionOffset);
         position = end + 2;
 
       case '</x-':
@@ -223,6 +251,7 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
         position = positionAfterDirectiveTag(offset, tag.end);
         flushText();
         openDirectives.removeLast();
+        variablesInScope.length -= innermost.variableCount;
         if (innermost.indexVariable case final indexVariable?) {
           emit('$indexVariable++;', sourceOffset: innermost.offset);
           indentLevel--;
@@ -286,6 +315,7 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
                     attribute.offset,
                   ),
             ];
+            variablesInScope.addAll(attributes.keys);
             if (declarations.isNotEmpty) {
               parameters = '{\n${declarations.join('\n')}\n  }';
             }
@@ -316,6 +346,7 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
               tagOffset: offset,
             );
             String? indexVariable;
+            int? start;
             if (attributes.containsKey('indexed') ||
                 attributes.containsKey('index-as')) {
               final indexed = requiredAttribute(
@@ -325,7 +356,7 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
                 usage: _forUsage,
                 tagOffset: offset,
               );
-              final start =
+              start =
                   int.tryParse(indexed.value) ??
                   fail(
                     '"indexed" must be an integer such as 0 or 1, '
@@ -337,6 +368,16 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
                 'index-as',
                 tagOffset: offset,
               );
+              if (indexVariable == itemVariable) {
+                fail(
+                  '"index-as" and "as" must name different variables, '
+                  'both are "$indexVariable"',
+                  attributes['index-as']!.offset,
+                );
+              }
+            }
+            requireValuePath(iterable.value, iterable.offset, '"in"');
+            if (indexVariable != null) {
               emit('{');
               indentLevel++;
               emit('var $indexVariable = $start;', sourceOffset: offset);
@@ -346,10 +387,13 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
               sourceOffset: iterable.offset,
             );
             indentLevel++;
+            final loopVariables = [itemVariable, ?indexVariable];
+            variablesInScope.addAll(loopVariables);
             openDirectives.add((
               name: 'for',
               indexVariable: indexVariable,
               offset: offset,
+              variableCount: loopVariables.length,
             ));
 
           case 'if':
@@ -363,12 +407,14 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
               usage: _ifUsage,
               tagOffset: offset,
             );
+            requireValuePath(condition.value, condition.offset, '"case"');
             emit('if (${condition.value}) {', sourceOffset: condition.offset);
             indentLevel++;
             openDirectives.add((
               name: 'if',
               indexVariable: null,
               offset: offset,
+              variableCount: 0,
             ));
 
           default:

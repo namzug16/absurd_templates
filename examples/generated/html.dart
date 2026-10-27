@@ -72,13 +72,9 @@ final class _Html$pages {
         number++; // components/pages/users.html:10:5
       }
     }
-    $out.write('  </ul>\n');
-    if (footer != null) { // components/pages/users.html:16:15
-      $out.write('    ');
-      _$write($out, footer); // components/pages/users.html:17:8
-      $out.write('\n');
-    }
-    $out.write('</section>\n');
+    $out.write('  </ul>\n  ');
+    _$write($out, footer); // components/pages/users.html:16:6
+    $out.write('\n</section>\n');
   });
 
   _Html$pages$admin get admin => const _Html$pages$admin();

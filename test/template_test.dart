@@ -46,12 +46,13 @@ $out.write('</h1>\n');
 
   test('removes lines that only hold a directive tag', () {
     final compiled = compileTemplate(
-      '<ul>\n  <x-if case="a">\n    <li>a</li>\n  </x-if>\n</ul>',
+      '<x-props a="bool"></x-props>\n'
+          '<ul>\n  <x-if case="a">\n    <li>a</li>\n  </x-if>\n</ul>',
       'a.html',
     );
     expect(compiled.body, r'''
 $out.write('<ul>\n');
-if (a) { // a.html:2:15
+if (a) { // a.html:3:15
   $out.write('    <li>a</li>\n');
 }
 $out.write('</ul>');
@@ -80,15 +81,16 @@ $out.write('</ul>');
   test('errors show the path, line, column and source line', () {
     expect(
       () => compileTemplate(
-        '<ul>\n  <x-if case="a">\n    <li>\n  </x-for>\n',
+        '<x-props a="bool"></x-props>\n'
+            '<ul>\n  <x-if case="a">\n    <li>\n  </x-for>\n',
         'components/list.html',
       ),
       throwsA(
         isA<Diagnostic>().having((d) => d.format(), 'format()', '''
-error: </x-for> found while <x-if> from line 2 is still open; close it with </x-if> first
-  --> components/list.html:4:3
+error: </x-for> found while <x-if> from line 3 is still open; close it with </x-if> first
+  --> components/list.html:5:3
   |
-4 |   </x-for>
+5 |   </x-for>
   |   ^'''),
       ),
     );
@@ -132,7 +134,34 @@ error: </x-for> found while <x-if> from line 2 is still open; close it with </x-
         20,
       ),
       '<x-if></x-if>': ('<x-if> needs a non-empty "case" attribute', 1, 1),
-      '\n<x-if case="a">': ('<x-if> is never closed; add </x-if>', 2, 1),
+      '<x-props a="bool"></x-props>\n<x-if case="a">': (
+        '<x-if> is never closed; add </x-if>',
+        2,
+        1,
+      ),
+      '<x-props a="int"></x-props>{{ a + 1 }}': (
+        '"{{ }}" only accepts a variable or its fields, like user or '
+            'user.name, got "a + 1"',
+        1,
+        31,
+      ),
+      '<x-props a="int"></x-props>\n  {{ b }}': (
+        '"b" is not declared; declare it in <x-props> or as an <x-for> '
+            'variable. Declared here: a',
+        2,
+        6,
+      ),
+      '<x-props a="bool?"></x-props><x-if case="a != null"></x-if>': (
+        '"case" only accepts a variable or its fields',
+        1,
+        42,
+      ),
+      '<x-props xs="List<int>"></x-props><x-for in="xs.reversed.toList()" as="x"></x-for>':
+          ('"in" only accepts a variable or its fields', 1, 46),
+      '<x-props xs="List<int>"></x-props><x-for in="xs" as="x"></x-for>{{ x }}':
+          ('"x" is not declared', 1, 68),
+      '<x-props xs="List<int>"></x-props><x-for in="xs" as="x" indexed="1" index-as="x"></x-for>':
+          ('"index-as" and "as" must name different variables', 1, 79),
       '</x-if>': ('</x-if> has no matching <x-if>', 1, 1),
       '<x-include></x-include>': ('accept a Fragment parameter', 1, 1),
       '<x-if case="a>': ('malformed <x-...> tag', 1, 1),

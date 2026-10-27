@@ -71,8 +71,11 @@ the generated file also lead back to the template.
 
 - `<x-props>` must come first; attribute = parameter name, value = Dart type.
   Nullable types become optional parameters, all others are `required`.
-- `{{ expr }}` escapes values; `Fragment` values are inserted as HTML; `null`
-  renders nothing.
+- `{{ }}`, `in="..."` and `case="..."` accept only a declared variable or its
+  fields (`title`, `user.name`, `pair.$1`), never other Dart code: compute
+  values in Dart and pass them in as props.
+- `{{ value }}` escapes values; `Fragment` values are inserted as HTML; `null`
+  renders nothing, so `{{ footer }}` handles an optional `Fragment?`.
 - `<x-for in as [indexed index-as]>` and `<x-if case>` render only their children.
   A directive tag alone on its line is removed together with that line.
 - Directives inside `<!-- -->` are left alone.

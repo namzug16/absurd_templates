@@ -4,7 +4,8 @@ import 'package:absurd_templates/absurd_templates.dart';
 import 'package:test/test.dart';
 
 const _specTemplates = {
-  'footer.html': '<footer>&copy; {{ "<Ada & Grace>" }}</footer>',
+  'footer.html':
+      '<x-props note="String"></x-props><footer>&copy; {{ note }}</footer>',
   'pages/user-page.html': '''
 <x-props name="String" active="bool"></x-props>
 <p>{{ name }}<x-if case="active">!</x-if></p>''',
@@ -17,7 +18,7 @@ const _specTemplates = {
 ></x-props>
 <h1>{{ title }}</h1>
 <x-for in="users" as="user" indexed="1" index-as="number"><x-if case="user.active"><li>{{ number }}. {{ user.name }}</li></x-if></x-for>
-<x-if case="footer != null">{{ footer }}</x-if>''',
+{{ footer }}''',
 };
 
 void main() {
@@ -37,7 +38,7 @@ void main() {
   final users = Html.pages.users(
     title: 'Users',
     users: [(name: 'Ada', active: true), (name: 'Grace', active: false), (name: 'Linus', active: true)],
-    footer: Html.footer(),
+    footer: Html.footer(note: '<Ada & Grace>'),
   );
   print(users.toHtml());
   print(Html.pages.userPage(name: "O'Neil", active: true).toHtml());
