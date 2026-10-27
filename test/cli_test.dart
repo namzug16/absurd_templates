@@ -138,6 +138,47 @@ class: Html
     expect(result.exitCode, 0);
   });
 
+  test('reads quoted values and comments in abs.yaml', () async {
+    writeProjectFile('abs.yaml', """
+# settings
+input: "components"   # quoted
+output: gen/a#b.dart  # the first # has no space before it
+class: 'Html'
+""");
+    writeProjectFile('components/header.html', '<header></header>');
+
+    final result = await _runAbs(projectDirectory);
+
+    expect(result.stderr, '');
+    expect(
+      File('${projectDirectory.path}/gen/a#b.dart').readAsStringSync(),
+      contains('abstract final class Html'),
+    );
+  });
+
+  group('rejects abs.yaml with', () {
+    final messageByConfig = {
+      'input: components\n  nested: x\noutput: o.dart\n': 'abs.yaml:2:1',
+      'input: [components]\noutput: o.dart\n': 'expected a "key: value" line',
+      'input: components\ninput: other\noutput: o.dart\n':
+          '"input" is set twice',
+      'input: components\noutput: o.dart\nclas: Html\n': 'unknown key "clas"',
+      'input:components\noutput: o.dart\n': 'expected a "key: value" line',
+    };
+    for (final MapEntry(key: config, value: message)
+        in messageByConfig.entries) {
+      test(config.split('\n').first, () async {
+        writeProjectFile('abs.yaml', config);
+        writeProjectFile('components/header.html', '<header></header>');
+
+        final result = await _runAbs(projectDirectory);
+
+        expect(result.exitCode, 1);
+        expect(result.stderr, contains(message));
+      });
+    }
+  });
+
   test('rejects an empty class instead of using the default', () async {
     writeProjectFile('abs.yaml', 'input: components\noutput: o.dart\nclass:\n');
     writeProjectFile('components/header.html', '<header></header>');

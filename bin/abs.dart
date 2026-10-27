@@ -2,11 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:absurd_templates/absurd_templates.dart';
-import 'package:source_span/source_span.dart';
-import 'package:yaml/yaml.dart';
 
 const _configFileName = 'abs.yaml';
 const _configKeys = {'input', 'output', 'class'};
+
+/// A top-level `key: value` line of abs.yaml: the value is double-quoted,
+/// single-quoted or plain text, optionally followed by a `# comment`.
+final _configLinePattern = RegExp(
+  r"""^([A-Za-z_][\w-]*):"""
+  r"""(?:[ \t]+(?:"([^"]*)"|'([^']*)'|([^\s#"'\[\]{}&*!|>%@`](?:[^#]|(?<=\S)#)*?)))?"""
+  r"""(?:[ \t]+#.*)?[ \t]*$""",
+);
 const _usage = '''
 Absurd Templates: compiles HTML templates into one self-contained Dart file.
 
@@ -212,51 +218,53 @@ _Project _loadProject() {
       'from the directory that contains it, or create it (see "abs help")',
     );
   }
-  final configSource = configFile.readAsStringSync();
+  final configLines = configFile.readAsStringSync().split('\n');
 
-  Diagnostic configError(String message, [SourceSpan? span]) {
-    final start = span?.start;
-    return Diagnostic(
-      message,
-      path: _configFileName,
-      line: start == null ? null : start.line + 1,
-      column: start == null ? null : start.column + 1,
-      lineText: start == null
-          ? null
-          : configSource.split('\n').elementAtOrNull(start.line),
+  Diagnostic configError(String message, {int lineIndex = 0}) => Diagnostic(
+    message,
+    path: _configFileName,
+    line: lineIndex + 1,
+    column: 1,
+    lineText: configLines[lineIndex].trimRight(),
+  );
+
+  final valueByKey = <String, ({String value, int lineIndex})>{};
+  for (final (lineIndex, line) in configLines.indexed) {
+    final trimmedLine = line.trim();
+    if (trimmedLine.isEmpty || trimmedLine.startsWith('#')) continue;
+    final match =
+        _configLinePattern.firstMatch(line.trimRight()) ??
+        (throw configError(
+          'expected a "key: value" line; $_configFileName only holds '
+          'top-level keys with plain or quoted text values',
+          lineIndex: lineIndex,
+        ));
+    final key = match[1]!;
+    if (!_configKeys.contains(key)) {
+      throw configError(
+        'unknown key "$key"; supported keys: ${_configKeys.join(', ')}',
+        lineIndex: lineIndex,
+      );
+    }
+    if (valueByKey.containsKey(key)) {
+      throw configError('"$key" is set twice', lineIndex: lineIndex);
+    }
+    valueByKey[key] = (
+      value: match[2] ?? match[3] ?? match[4] ?? '',
+      lineIndex: lineIndex,
     );
   }
 
-  final YamlNode config;
-  try {
-    config = loadYamlNode(configSource);
-  } on YamlException catch (error) {
-    throw configError('invalid YAML: ${error.message}', error.span);
-  }
-  final configMap = config is YamlMap
-      ? config
-      : throw configError(
-          'must be a map with "input" and "output" keys (see "abs help")',
-        );
-  for (final key in configMap.nodes.keys.cast<YamlNode>()) {
-    if (!_configKeys.contains(key.value)) {
-      throw configError(
-        'unknown key "${key.value}"; supported keys: ${_configKeys.join(', ')}',
-        key.span,
-      );
-    }
-  }
-
   String stringValue(String key, {String? defaultValue}) {
-    final node = configMap.nodes[key];
+    final entry = valueByKey[key];
     // The default only applies when the key is absent, not when it is empty.
-    final value = node == null ? defaultValue : node.value;
-    if (value is! String || value.isEmpty) {
+    final value = entry == null ? defaultValue : entry.value;
+    if (value == null || value.isEmpty) {
       throw configError(
-        node == null
+        entry == null
             ? '"$key" is required (see "abs help")'
             : '"$key" must be a non-empty string',
-        (node ?? configMap).span,
+        lineIndex: entry?.lineIndex ?? 0,
       );
     }
     return value;
@@ -268,7 +276,7 @@ _Project _loadProject() {
   if (!Directory(inputDirectory).existsSync()) {
     throw configError(
       'input directory "$inputDirectory" does not exist',
-      configMap.nodes['input']?.span,
+      lineIndex: valueByKey['input']!.lineIndex,
     );
   }
   return (
