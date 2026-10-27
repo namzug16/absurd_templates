@@ -23,6 +23,12 @@ class: Html                      # entry class; Components when absent
 The generated file is output, not source. Never edit it: the next `abs` run
 overwrites every change. Change the `.html` template, then regenerate.
 
+Don't read it either: it holds every template and can run to thousands of
+lines. To learn a component's parameters, read the `<x-props>` at the top
+of its template; to understand an error that points into the generated
+file, follow the `// path.html:line:column` comment on that line to the
+template.
+
 ## The edit loop
 
 1. Edit or create the `.html` file under the `input` directory.
