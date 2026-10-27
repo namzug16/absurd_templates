@@ -12,11 +12,11 @@ const _specTemplates = {
   'pages/admin/dashboard.html': '<b>admin</b>',
   'text.html': '<x-props value="String"></x-props>{{ value }}',
   'pages/list.html':
-      '<x-props items="List&lt;Fragment>"></x-props><ul>{{ items }}</ul>',
+      '<x-props items="List<Fragment>"></x-props><ul>{{ items }}</ul>',
   'pages/users.html': '''
 <x-props
   title="String"
-  users="List&lt;({String name, bool active})>"
+  users="List<({String name, bool active})>"
   footer="Fragment?"
 ></x-props>
 <h1>{{ title }}</h1>

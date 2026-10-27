@@ -74,7 +74,7 @@ the generated file also lead back to the template.
 ```html
 <x-props
   title="String"
-  users="List&lt;({String name, bool active})>"
+  users="List<({String name, bool active})>"
   footer="Fragment?"
 ></x-props>
 
@@ -89,8 +89,10 @@ the generated file also lead back to the template.
 </section>
 ```
 
-- `<x-props>` must come first; attribute = parameter name, value = Dart type.
-  Nullable types become optional parameters, all others are `required`.
+- `<x-props>` must come first; attribute = parameter name, value = Dart type,
+  written as plain Dart (`List<String>`; the escaped `List&lt;String>` also
+  works). Nullable types become optional parameters, all others are
+  `required`.
 - `{{ }}`, `in="..."` and `case="..."` accept only a declared variable or its
   fields (`title`, `user.name`, `pair.$1`), never other Dart code: compute
   values in Dart and pass them in as props.

@@ -236,7 +236,7 @@ error: "output" is required (see "abs help")
       writeProjectFile('components/broken.html', '''
 <x-props
   name="Strng"
-  users="List&lt;({String name})>"
+  users="List<({String name})>"
 ></x-props>
 <x-for in="users" as="user">
   <li>{{ user.nmae }}</li>
