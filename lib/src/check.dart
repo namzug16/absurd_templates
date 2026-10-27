@@ -88,6 +88,16 @@ Future<List<Diagnostic>> _analyzeGeneratedLibrary(
         ),
       ];
     }
+    // dart analyze exits with 0-3 when it ran; anything else means it failed.
+    if (result.exitCode > 3) {
+      return [
+        Diagnostic(
+          '"dart analyze" failed with exit code ${result.exitCode}, so Dart '
+                  'errors were not checked:\n${result.stderr}${result.stdout}'
+              .trimRight(),
+        ),
+      ];
+    }
     final generatedLines = library.split('\n');
     return [
       for (final outputLine in '${result.stdout}\n${result.stderr}'.split('\n'))

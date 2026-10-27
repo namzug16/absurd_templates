@@ -8,11 +8,13 @@ final _packageConfig = File('.dart_tool/package_config.json').absolute.path;
 Future<ProcessResult> _runAbs(
   Directory projectDirectory, [
   List<String> arguments = const [],
-]) => Process.run(Platform.resolvedExecutable, [
-  '--packages=$_packageConfig',
-  _absScript,
-  ...arguments,
-], workingDirectory: projectDirectory.path);
+  Map<String, String>? environment,
+]) => Process.run(
+  Platform.resolvedExecutable,
+  ['--packages=$_packageConfig', _absScript, ...arguments],
+  workingDirectory: projectDirectory.path,
+  environment: environment,
+);
 
 void main() {
   late Directory projectDirectory;
@@ -171,6 +173,35 @@ error: Undefined class 'Strng'.
       expect(result.stdout, 'abs check: 1 template OK\n');
       expect(result.exitCode, 0);
     });
+
+    test('fails when dart analyze cannot run', () async {
+      writeProjectFile(
+        'fake-bin/dart',
+        '#!/bin/sh\necho "analyzer crashed" >&2\nexit 64\n',
+      );
+      Process.runSync('chmod', [
+        '+x',
+        '${projectDirectory.path}/fake-bin/dart',
+      ]);
+
+      final result = await _runAbs(
+        projectDirectory,
+        ['check'],
+        {
+          'PATH':
+              '${projectDirectory.path}/fake-bin:${Platform.environment['PATH']}',
+        },
+      );
+
+      expect(result.exitCode, 1);
+      expect(
+        result.stdout,
+        contains(
+          '"dart analyze" failed with exit code 64, so Dart errors were not '
+          'checked:\nanalyzer crashed',
+        ),
+      );
+    }, testOn: '!windows');
 
     test('rejects files outside the input directory', () async {
       final result = await _runAbs(projectDirectory, ['check', 'other.html']);
