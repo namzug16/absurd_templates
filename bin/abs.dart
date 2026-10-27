@@ -79,12 +79,17 @@ void _generate(_Project project) {
       path: project.outputFile,
     );
   }
-  outputFile
-    ..createSync(recursive: true)
-    ..writeAsStringSync(library);
+  // Leaving an unchanged file alone keeps watchers from rebuilding.
+  final isUnchanged =
+      outputFile.existsSync() && outputFile.readAsStringSync() == library;
+  if (!isUnchanged) {
+    outputFile
+      ..createSync(recursive: true)
+      ..writeAsStringSync(library);
+  }
   stdout.writeln(
-    'abs: generated ${project.outputFile} from '
-    '${project.templateSourceByPath.length} templates in '
+    'abs: ${isUnchanged ? 'unchanged' : 'generated'} ${project.outputFile} '
+    'from ${project.templateSourceByPath.length} templates in '
     '${stopwatch.elapsedMilliseconds}ms',
   );
 }

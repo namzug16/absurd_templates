@@ -53,6 +53,20 @@ class: Html
     expect(library, contains('static const layout = _Html\$layout();'));
   });
 
+  test('leaves an unchanged output file alone', () async {
+    writeProjectFile('abs.yaml', 'input: components\noutput: out.dart\n');
+    writeProjectFile('components/header.html', '<header></header>');
+    await _runAbs(projectDirectory);
+    final outputFile = File('${projectDirectory.path}/out.dart');
+    final firstModified = outputFile.lastModifiedSync();
+    await Future<void>.delayed(const Duration(milliseconds: 1100));
+
+    final result = await _runAbs(projectDirectory);
+
+    expect(result.stdout, startsWith('abs: unchanged out.dart'));
+    expect(outputFile.lastModifiedSync(), firstModified);
+  });
+
   test('refuses to overwrite a file it did not generate', () async {
     writeProjectFile('abs.yaml', 'input: components\noutput: main.dart\n');
     writeProjectFile('components/header.html', '<header></header>');
