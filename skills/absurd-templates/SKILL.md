@@ -37,8 +37,12 @@ overwrites every change. Change the `.html` template, then regenerate.
 5. Update the Dart code that calls the component if its props changed, and
    run the project's usual `dart analyze` and tests.
 
-If `abs` is not on the PATH, try `dart run absurd_templates:abs` (same
-arguments); if neither works, ask the user how they run it.
+Some projects vendor abs instead of installing it: a `tool/abs.dart` (or
+another file) whose first line reads `vendored by "abs vendor"`. Then every
+`abs ...` command in this skill and in error messages means
+`dart run tool/abs.dart ...`, with the same arguments. Otherwise, if `abs`
+is not on the PATH, try `dart run absurd_templates:abs`; if nothing works,
+ask the user how they run it, or offer to vendor it (see below).
 
 `abs check` exits with 1 on errors, so it fits scripts and CI. Its messages
 usually say what to do next; read the whole message before changing code.
@@ -156,3 +160,36 @@ one directory are errors. Rename the file when `abs` reports a conflict.
   file, unless the user confirms.
 - **No `abs.yaml`**: run `abs init` to create a commented one, then adjust
   `input` and `output`.
+
+## Vendoring abs into a project
+
+Vendoring copies the whole tool into the project as one Dart file with no
+package dependencies, so nobody needs abs installed. Do it when the user
+asks to vendor abs, or agrees to it when abs is not available.
+
+1. With an installed abs, run `abs vendor` in the project root. It writes
+   `tool/abs.dart`; pass a path (`abs vendor scripts/abs.dart`) to put it
+   elsewhere. Without an installed abs, install it once
+   (`dart pub global activate` from its repository) or ask the user.
+2. Run `dart run tool/abs.dart version` to confirm it works, and
+   `dart run tool/abs.dart init` if there is no `abs.yaml` yet.
+3. Commit the file. Do not edit or reformat it: its header holds a
+   checksum, and an edited copy can no longer be updated automatically.
+   `dart format` with default settings leaves it unchanged; if the project
+   sets another page width, exclude the file from formatting.
+4. Mention `dart run tool/abs.dart` wherever the project documents its
+   commands, such as its README or scripts.
+
+To update a vendored copy, run `abs vendor` (with the same path) using a
+newer installed abs. What it does depends on the existing file:
+
+| Existing file | Result |
+|---|---|
+| Copy from an older abs | Replaced; prints `updated ... from abs X to Y` |
+| Same version, unchanged | Left alone; prints `already abs X` |
+| Copy edited by hand | Refused; move the changes out, delete it, vendor again |
+| Copy from a newer abs | Refused; update the installed abs instead |
+| Any file abs did not write | Refused; vendor into another path |
+
+These refusals protect the user's work; do not get around them by
+deleting the file unless the user confirms.

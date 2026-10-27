@@ -12,6 +12,22 @@ dart pub global activate --source path .
 dart compile exe bin/abs.dart -o abs
 ```
 
+## Vendor instead of installing
+
+To use abs without installing it, copy it into your project as one Dart file
+that needs only the Dart SDK, no packages:
+
+```sh
+abs vendor                 # writes tool/abs.dart; or: abs vendor path/to/file.dart
+dart run tool/abs.dart     # works exactly like abs: check, init, help...
+```
+
+Commit `tool/abs.dart`. Its header records the abs version and a checksum.
+Running `abs vendor` again with a newer abs updates the copy. It never
+overwrites a file it did not write, a copy edited by hand, or a copy from a
+newer abs. `abs version` (or `dart run tool/abs.dart version`) prints the
+version.
+
 ## Configure
 
 `abs.yaml` in your project root. `abs init` creates it with comments that
@@ -22,6 +38,9 @@ input: components             # required, scanned recursively for .html
 output: lib/generated/html.dart # required
 class: Html                   # optional, defaults to Components
 ```
+
+abs.yaml holds only these top-level keys, with plain or quoted text values
+and `#` comments; other YAML features are rejected with the line they are on.
 
 Run `abs` to generate the output file.
 
@@ -116,6 +135,14 @@ skill that teaches template syntax, the `abs check` loop and how to fix its
 errors. Copy the folder into a project's `.claude/skills/` (or
 `~/.claude/skills/` for every project) to use it with Claude Code; other
 agents can read `SKILL.md` as plain instructions.
+
+## Developing abs
+
+After changing anything in `lib/src`, run
+`dart run tool/build_vendored_source.dart` to rebuild the copy that
+`abs vendor` writes (a test fails until you do), and bump `version` in
+`pubspec.yaml` together with `absVersion` in `lib/src/cli.dart` before
+releasing, so vendored copies can tell they are out of date.
 
 ## Benchmark
 
