@@ -22,7 +22,8 @@ output: lib/generated/html.dart # required
 class: Html                   # optional, defaults to Components
 ```
 
-Run `abs`.
+Run `abs` to generate the output file. Errors name the file, line and
+column, show the source line, and say how to fix them.
 
 ## Templates
 

@@ -1,8 +1,9 @@
+import 'package:absurd_templates/src/diagnostic.dart';
 import 'package:absurd_templates/src/template.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('compiles props, interpolation, loops and conditions', () {
+  test('compiles props, interpolation and loops with source markers', () {
     final compiled = compileTemplate('''
 <x-props
   title="String"
@@ -16,28 +17,28 @@ void main() {
 </x-for>
 ''', 'users.html');
 
-    expect(
-      compiled.parameters,
-      '{required String title, '
-      'required List<({String name, bool active})> users, '
-      'Fragment? footer}',
-    );
+    expect(compiled.parameters, '''
+{
+    required String title, // users.html:2:10
+    required List<({String name, bool active})> users, // users.html:3:10
+    Fragment? footer, // users.html:4:11
+  }''');
     expect(compiled.body, r'''
 $out.write('<h1>');
-_$write($out, title);
+_$write($out, title); // users.html:7:8
 $out.write('</h1>\n');
 {
-  var number = 1;
-  for (final user in (users)) {
-    if (user.active) {
+  var number = 1; // users.html:8:1
+  for (final user in (users)) { // users.html:8:12
+    if (user.active) { // users.html:9:13
       $out.write('<li>');
-      _$write($out, number);
+      _$write($out, number); // users.html:9:33
       $out.write('. ');
-      _$write($out, user.name);
+      _$write($out, user.name); // users.html:9:47
       $out.write('</li>');
     }
     $out.write('\n');
-    number++;
+    number++; // users.html:8:1
   }
 }
 ''');
@@ -50,7 +51,7 @@ $out.write('</h1>\n');
     );
     expect(compiled.body, r'''
 $out.write('<ul>\n');
-if (a) {
+if (a) { // a.html:2:15
   $out.write('    <li>a</li>\n');
 }
 $out.write('</ul>');
@@ -76,38 +77,80 @@ $out.write('</ul>');
     );
   });
 
+  test('errors show the path, line, column and source line', () {
+    expect(
+      () => compileTemplate(
+        '<ul>\n  <x-if case="a">\n    <li>\n  </x-for>\n',
+        'components/list.html',
+      ),
+      throwsA(
+        isA<Diagnostic>().having((d) => d.format(), 'format()', '''
+error: </x-for> found while <x-if> from line 2 is still open; close it with </x-if> first
+  --> components/list.html:4:3
+  |
+4 |   </x-for>
+  |   ^'''),
+      ),
+    );
+  });
+
   group('fails fast on', () {
+    // Template source -> expected message fragment, line and column.
     final invalidTemplates = {
-      '<p></p><x-props a="int"></x-props>': 'a.html:1: <x-props> must be at',
-      '<x-props a="int">': 'a.html:1: <x-props> must be followed',
-      '<x-props a></x-props>': 'parameter "a" needs a type',
-      '<x-props class="int"></x-props>':
-          '"class" is not a valid Dart parameter',
-      '<x-props a="int" a="int"></x-props>': 'duplicate attribute "a"',
-      '<x-for in="xs"></x-for>': 'missing "as" attribute',
-      '<x-for in="xs" as="x" indexed="1"></x-for>': 'missing "index-as"',
-      '<x-for in="xs" as="x" indexed="a" index-as="i"></x-for>':
-          '"indexed" must be an integer',
-      '<x-for in="xs" as="x" key="k"></x-for>': 'unknown attribute "key"',
-      '<x-if></x-if>': 'missing "case" attribute',
-      '\n<x-if case="a">': 'a.html:2: <x-if> is never closed',
-      '<x-if case="a"></x-for>': 'unexpected </x-for>',
-      '<x-include></x-include>': 'unknown directive <x-include>',
-      '{{ name': 'unclosed "{{"',
-      '{{ }}': 'empty "{{ }}"',
-      '<!-- comment': 'unclosed HTML comment',
+      '<p></p><x-props a="int"></x-props>': (
+        '<x-props> must be the first thing',
+        1,
+        8,
+      ),
+      '<x-props a="int">': ('must be closed right away with </x-props>', 1, 1),
+      '<x-props\n  a\n></x-props>': ('parameter "a" needs a Dart type', 2, 3),
+      '<x-props class="int"></x-props>': (
+        '"class" is not a valid parameter',
+        1,
+        17,
+      ),
+      '<x-props a="int" a="int"></x-props>': ('"a" is declared twice', 1, 18),
+      '<x-for in="xs"></x-for>': ('needs a non-empty "as" attribute', 1, 1),
+      '<x-for in="xs" as="x" indexed="1"></x-for>': (
+        'needs a non-empty "index-as"',
+        1,
+        1,
+      ),
+      '<x-for in="xs" as="x" indexed="a" index-as="i"></x-for>': (
+        '"indexed" must be an integer such as 0 or 1, got "a"',
+        1,
+        32,
+      ),
+      '<x-for in="xs" as="x" key="k"></x-for>': (
+        'does not support the "key" attribute; supported attributes: in, as',
+        1,
+        28,
+      ),
+      '<x-for in="xs" as="my item"></x-for>': (
+        '"my item" is not a valid variable name for "as"',
+        1,
+        20,
+      ),
+      '<x-if></x-if>': ('<x-if> needs a non-empty "case" attribute', 1, 1),
+      '\n<x-if case="a">': ('<x-if> is never closed; add </x-if>', 2, 1),
+      '</x-if>': ('</x-if> has no matching <x-if>', 1, 1),
+      '<x-include></x-include>': ('accept a Fragment parameter', 1, 1),
+      '<x-if case="a>': ('malformed <x-...> tag', 1, 1),
+      'a\n  {{ name': ('"{{" is never closed with "}}"', 2, 3),
+      '{{ }}': ('"{{ }}" is empty', 1, 1),
+      '<!-- comment': ('"<!--" is never closed', 1, 1),
     };
-    for (final MapEntry(key: source, value: error)
+    for (final MapEntry(key: source, value: (message, line, column))
         in invalidTemplates.entries) {
       test(source, () {
         expect(
           () => compileTemplate(source, 'a.html'),
           throwsA(
-            isA<FormatException>().having(
-              (exception) => exception.message,
-              'message',
-              contains(error),
-            ),
+            isA<Diagnostic>()
+                .having((d) => d.message, 'message', contains(message))
+                .having((d) => d.path, 'path', 'a.html')
+                .having((d) => d.line, 'line', line)
+                .having((d) => d.column, 'column', column),
           ),
         );
       });

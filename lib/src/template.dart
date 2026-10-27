@@ -1,3 +1,5 @@
+import 'diagnostic.dart';
+
 /// Dart words that cannot be used as generated method or parameter names.
 const reservedDartNames = {
   'assert', 'break', 'case', 'catch', 'class', 'const', 'continue', //
@@ -24,26 +26,65 @@ final _trailingIndentationPattern = RegExp(r'[ \t]*$');
 ///
 /// [body] holds statements that write the rendered HTML into a
 /// `StringBuffer` named `$out`, using the generated `_$write` helper.
+/// Statements with user code end in a `// path:line:column` comment pointing
+/// back at the template, so Dart errors can be traced to their source.
 typedef CompiledTemplate = ({String parameters, String body});
 
-/// Compiles one template [source]; [templatePath] is only used in errors.
+typedef _Attribute = ({String? value, int offset});
+
+const _forUsage =
+    '<x-for in="items" as="item"> or '
+    '<x-for in="items" as="item" indexed="1" index-as="position">';
+const _ifUsage = '<x-if case="condition">';
+const _nameRules =
+    'use a Dart identifier that starts with a letter, contains only '
+    'letters, digits and "_", and is not a reserved word';
+
+/// Compiles one template [source]. [templatePath] is used in diagnostics and
+/// source markers.
 ///
-/// Throws a [FormatException] with `path:line` on any invalid markup.
+/// Throws a [Diagnostic] pointing at the offending line on invalid markup.
 CompiledTemplate compileTemplate(String source, String templatePath) {
   final body = StringBuffer();
   final pendingText = StringBuffer();
   final openDirectives = <({String name, String? indexVariable, int offset})>[];
+  final lineStartOffsets = [0, for (final m in '\n'.allMatches(source)) m.end];
   var parameters = '';
   var position = 0;
   var indentLevel = 0;
 
-  Never fail(String message, int offset) {
-    final line = '\n'.allMatches(source.substring(0, offset)).length + 1;
-    throw FormatException('$templatePath:$line: $message');
+  ({int line, int column, String lineText}) locate(int offset) {
+    final lineIndex = lineStartOffsets.lastIndexWhere((s) => s <= offset);
+    final lineStart = lineStartOffsets[lineIndex];
+    final lineEnd = lineIndex + 1 < lineStartOffsets.length
+        ? lineStartOffsets[lineIndex + 1] - 1
+        : source.length;
+    return (
+      line: lineIndex + 1,
+      column: offset - lineStart + 1,
+      lineText: source.substring(lineStart, lineEnd).trimRight(),
+    );
   }
 
-  void emit(String statement) {
-    body.writeln('${'  ' * indentLevel}$statement');
+  Never fail(String message, int offset) {
+    final location = locate(offset);
+    throw Diagnostic(
+      message,
+      path: templatePath,
+      line: location.line,
+      column: location.column,
+      lineText: location.lineText,
+    );
+  }
+
+  String sourceMarker(int offset) {
+    final location = locate(offset);
+    return '// $templatePath:${location.line}:${location.column}';
+  }
+
+  void emit(String statement, {int? sourceOffset}) {
+    final marker = sourceOffset == null ? '' : ' ${sourceMarker(sourceOffset)}';
+    body.writeln('${'  ' * indentLevel}$statement$marker');
   }
 
   void flushText() {
@@ -70,28 +111,60 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
     return restOfLine.end;
   }
 
-  String requiredAttribute(
-    Map<String, String?> attributes,
-    String name,
-    int offset,
+  void rejectUnknownAttributes(
+    Map<String, _Attribute> attributes,
+    String directive,
+    List<String> supported,
   ) {
-    final value = attributes[name]?.trim();
-    if (value == null || value.isEmpty) {
-      fail('missing "$name" attribute', offset);
+    for (final MapEntry(key: name, value: attribute) in attributes.entries) {
+      if (!supported.contains(name)) {
+        fail(
+          '<x-$directive> does not support the "$name" attribute; '
+          'supported attributes: ${supported.join(', ')}',
+          attribute.offset,
+        );
+      }
     }
-    return value;
   }
 
-  String identifierAttribute(
-    Map<String, String?> attributes,
-    String name,
-    int offset,
-  ) {
-    final value = requiredAttribute(attributes, name, offset);
-    if (!_isValidName(value)) {
-      fail('"$value" is not a valid Dart variable name', offset);
+  ({String value, int offset}) requiredAttribute(
+    Map<String, _Attribute> attributes,
+    String name, {
+    required String directive,
+    required String usage,
+    required int tagOffset,
+  }) {
+    final attribute = attributes[name];
+    final value = attribute?.value?.trim();
+    if (value == null || value.isEmpty) {
+      fail(
+        '<x-$directive> needs a non-empty "$name" attribute; usage: $usage',
+        attribute?.offset ?? tagOffset,
+      );
     }
-    return value;
+    return (value: value, offset: attribute!.offset);
+  }
+
+  String variableAttribute(
+    Map<String, _Attribute> attributes,
+    String name, {
+    required int tagOffset,
+  }) {
+    final attribute = requiredAttribute(
+      attributes,
+      name,
+      directive: 'for',
+      usage: _forUsage,
+      tagOffset: tagOffset,
+    );
+    if (!_isValidName(attribute.value)) {
+      fail(
+        '"${attribute.value}" is not a valid variable name for "$name"; '
+        '$_nameRules',
+        attribute.offset,
+      );
+    }
+    return attribute.value;
   }
 
   while (true) {
@@ -108,31 +181,50 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
     switch (match[0]) {
       case '<!--':
         final end = source.indexOf('-->', match.end);
-        if (end == -1) fail('unclosed HTML comment', offset);
+        if (end == -1) {
+          fail('HTML comment "<!--" is never closed with "-->"', offset);
+        }
         pendingText.write(source.substring(offset, end + 3));
         position = end + 3;
 
       case '{{':
         final end = source.indexOf('}}', match.end);
-        if (end == -1) fail('unclosed "{{"', offset);
+        if (end == -1) fail('"{{" is never closed with "}}"', offset);
         final expression = source.substring(match.end, end).trim();
-        if (expression.isEmpty) fail('empty "{{ }}"', offset);
+        if (expression.isEmpty) {
+          fail(
+            '"{{ }}" is empty; put a Dart expression inside, e.g. {{ title }}',
+            offset,
+          );
+        }
         flushText();
-        emit('_\$write(\$out, $expression);');
+        emit(
+          '_\$write(\$out, $expression);',
+          sourceOffset: source.indexOf(expression, match.end),
+        );
         position = end + 2;
 
       case '</x-':
         final tag =
             _closeTagPattern.matchAsPrefix(source, offset) ??
-            fail('malformed closing tag', offset);
-        if (openDirectives.lastOrNull?.name != tag[1]) {
-          fail('unexpected </x-${tag[1]}>', offset);
+            fail('malformed closing tag; expected </x-for> or </x-if>', offset);
+        final innermost = openDirectives.lastOrNull;
+        if (innermost == null) {
+          fail('</x-${tag[1]}> has no matching <x-${tag[1]}>', offset);
+        }
+        if (innermost.name != tag[1]) {
+          fail(
+            '</x-${tag[1]}> found while <x-${innermost.name}> from line '
+            '${locate(innermost.offset).line} is still open; '
+            'close it with </x-${innermost.name}> first',
+            offset,
+          );
         }
         position = positionAfterDirectiveTag(offset, tag.end);
         flushText();
-        final directive = openDirectives.removeLast();
-        if (directive.indexVariable case final indexVariable?) {
-          emit('$indexVariable++;');
+        openDirectives.removeLast();
+        if (innermost.indexVariable case final indexVariable?) {
+          emit('$indexVariable++;', sourceOffset: innermost.offset);
           indentLevel--;
           emit('}');
         }
@@ -142,38 +234,60 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
       default:
         final tag =
             _openTagPattern.matchAsPrefix(source, offset) ??
-            fail('malformed <x-...> tag', offset);
+            fail(
+              'malformed <x-...> tag; check that the directive name is '
+              'lowercase, every attribute value is quoted and the tag ends '
+              'with ">"',
+              offset,
+            );
+        final tagName = tag[1]!;
         final attributes = _parseAttributes(
           tag[2]!,
-          (message) => fail(message, offset),
+          offset + '<x-'.length + tagName.length,
+          fail,
         );
         position = tag.end;
 
-        switch (tag[1]) {
+        switch (tagName) {
           case 'props':
             if (source.substring(0, offset).trim().isNotEmpty) {
-              fail('<x-props> must be at the start of the template', offset);
+              fail(
+                '<x-props> must be the first thing in the template; only '
+                'whitespace may come before it',
+                offset,
+              );
             }
             final closeTag = _closeTagPattern.matchAsPrefix(
               source,
               _leadingWhitespacePattern.matchAsPrefix(source, position)!.end,
             );
             if (closeTag == null || closeTag[1] != 'props') {
-              fail('<x-props> must be followed by </x-props>', offset);
+              fail(
+                '<x-props> must be closed right away with </x-props>; '
+                'it cannot contain content',
+                offset,
+              );
             }
             final declarations = [
-              for (final MapEntry(key: name, value: type) in attributes.entries)
+              for (final MapEntry(key: name, value: attribute)
+                  in attributes.entries)
                 if (!_isValidName(name))
-                  fail('"$name" is not a valid Dart parameter name', offset)
-                else if (type == null || type.trim().isEmpty)
-                  fail('parameter "$name" needs a type', offset)
-                else if (type.trim().endsWith('?'))
-                  '${type.trim()} $name'
+                  fail(
+                    '"$name" is not a valid parameter name; $_nameRules',
+                    attribute.offset,
+                  )
+                else if (attribute.value?.trim() case final type?
+                    when type.isNotEmpty)
+                  '    ${type.endsWith('?') ? '' : 'required '}$type $name, '
+                      '${sourceMarker(attribute.offset)}'
                 else
-                  'required ${type.trim()} $name',
+                  fail(
+                    'parameter "$name" needs a Dart type, e.g. $name="String"',
+                    attribute.offset,
+                  ),
             ];
             if (declarations.isNotEmpty) {
-              parameters = '{${declarations.join(', ')}}';
+              parameters = '{\n${declarations.join('\n')}\n  }';
             }
             pendingText.clear();
             position = _leadingWhitespacePattern
@@ -183,32 +297,54 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
           case 'for':
             position = positionAfterDirectiveTag(offset, tag.end);
             flushText();
-            _rejectUnknownAttributes(
+            rejectUnknownAttributes(attributes, 'for', const [
+              'in',
+              'as',
+              'indexed',
+              'index-as',
+            ]);
+            final iterable = requiredAttribute(
               attributes,
-              {'in', 'as', 'indexed', 'index-as'},
-              fail,
-              offset,
+              'in',
+              directive: 'for',
+              usage: _forUsage,
+              tagOffset: offset,
             );
-            final iterable = requiredAttribute(attributes, 'in', offset);
-            final itemVariable = identifierAttribute(attributes, 'as', offset);
+            final itemVariable = variableAttribute(
+              attributes,
+              'as',
+              tagOffset: offset,
+            );
             String? indexVariable;
             if (attributes.containsKey('indexed') ||
                 attributes.containsKey('index-as')) {
+              final indexed = requiredAttribute(
+                attributes,
+                'indexed',
+                directive: 'for',
+                usage: _forUsage,
+                tagOffset: offset,
+              );
               final start =
-                  int.tryParse(
-                    requiredAttribute(attributes, 'indexed', offset),
-                  ) ??
-                  fail('"indexed" must be an integer', offset);
-              indexVariable = identifierAttribute(
+                  int.tryParse(indexed.value) ??
+                  fail(
+                    '"indexed" must be an integer such as 0 or 1, '
+                    'got "${indexed.value}"',
+                    indexed.offset,
+                  );
+              indexVariable = variableAttribute(
                 attributes,
                 'index-as',
-                offset,
+                tagOffset: offset,
               );
               emit('{');
               indentLevel++;
-              emit('var $indexVariable = $start;');
+              emit('var $indexVariable = $start;', sourceOffset: offset);
             }
-            emit('for (final $itemVariable in ($iterable)) {');
+            emit(
+              'for (final $itemVariable in (${iterable.value})) {',
+              sourceOffset: iterable.offset,
+            );
             indentLevel++;
             openDirectives.add((
               name: 'for',
@@ -219,9 +355,15 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
           case 'if':
             position = positionAfterDirectiveTag(offset, tag.end);
             flushText();
-            _rejectUnknownAttributes(attributes, {'case'}, fail, offset);
-            final condition = requiredAttribute(attributes, 'case', offset);
-            emit('if ($condition) {');
+            rejectUnknownAttributes(attributes, 'if', const ['case']);
+            final condition = requiredAttribute(
+              attributes,
+              'case',
+              directive: 'if',
+              usage: _ifUsage,
+              tagOffset: offset,
+            );
+            emit('if (${condition.value}) {', sourceOffset: condition.offset);
             indentLevel++;
             openDirectives.add((
               name: 'if',
@@ -230,13 +372,22 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
             ));
 
           default:
-            fail('unknown directive <x-${tag[1]}>', offset);
+            fail(
+              '<x-$tagName> is not a directive; supported directives are '
+              '<x-props>, <x-for> and <x-if>. Templates cannot include other '
+              'templates: accept a Fragment parameter and pass the component '
+              'from Dart instead',
+              offset,
+            );
         }
     }
   }
 
   if (openDirectives.lastOrNull case final unclosed?) {
-    fail('<x-${unclosed.name}> is never closed', unclosed.offset);
+    fail(
+      '<x-${unclosed.name}> is never closed; add </x-${unclosed.name}>',
+      unclosed.offset,
+    );
   }
   flushText();
   return (parameters: parameters, body: body.toString());
@@ -245,29 +396,31 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
 bool _isValidName(String name) =>
     _identifierPattern.hasMatch(name) && !reservedDartNames.contains(name);
 
-Map<String, String?> _parseAttributes(
+/// Parses the attributes of a tag; [sourceOffset] is where [source] starts
+/// in the template, so each attribute knows its offset (its value's, if any).
+Map<String, _Attribute> _parseAttributes(
   String source,
-  Never Function(String) fail,
+  int sourceOffset,
+  Never Function(String, int) fail,
 ) {
-  final attributes = <String, String?>{};
+  final attributes = <String, _Attribute>{};
   for (final match in _attributePattern.allMatches(source)) {
     final name = match[1]!;
-    if (attributes.containsKey(name)) fail('duplicate attribute "$name"');
-    final value = match[2] ?? match[3] ?? match[4];
-    attributes[name] = value == null ? null : _decodeEntities(value);
+    final nameOffset = sourceOffset + match.start;
+    if (attributes.containsKey(name)) {
+      fail('attribute "$name" is declared twice', nameOffset);
+    }
+    final rawValue = match[2] ?? match[3] ?? match[4];
+    attributes[name] = rawValue == null
+        ? (value: null, offset: nameOffset)
+        : (
+            value: _decodeEntities(rawValue),
+            offset:
+                nameOffset +
+                match[0]!.indexOf(rawValue, match[0]!.indexOf('=') + 1),
+          );
   }
   return attributes;
-}
-
-void _rejectUnknownAttributes(
-  Map<String, String?> attributes,
-  Set<String> allowed,
-  Never Function(String, int) fail,
-  int offset,
-) {
-  for (final name in attributes.keys) {
-    if (!allowed.contains(name)) fail('unknown attribute "$name"', offset);
-  }
 }
 
 String _decodeEntities(String value) => value

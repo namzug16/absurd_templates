@@ -17,12 +17,15 @@ abstract final class Html {
 final class _Html$layout {
   const _Html$layout();
 
-  Fragment primary({required String title, required Fragment content}) =>
+  Fragment primary({
+    required String title, // components/layout/primary.html:2:10
+    required Fragment content, // components/layout/primary.html:3:12
+  }) =>
       Fragment._(($out) {
     $out.write('<!DOCTYPE html>\n<html lang="en">\n  <head>\n    <title>');
-    _$write($out, title);
+    _$write($out, title); // components/layout/primary.html:9:15
     $out.write('</title>\n  </head>\n  <body>\n    <main>');
-    _$write($out, content);
+    _$write($out, content); // components/layout/primary.html:12:14
     $out.write('</main>\n  </body>\n</html>\n');
   });
 }
@@ -30,41 +33,49 @@ final class _Html$layout {
 final class _Html$pages {
   const _Html$pages();
 
-  Fragment user({required String name, required String surname, required bool active}) =>
+  Fragment user({
+    required String name, // components/pages/user.html:2:9
+    required String surname, // components/pages/user.html:3:12
+    required bool active, // components/pages/user.html:4:11
+  }) =>
       Fragment._(($out) {
     $out.write('<article>\n  <h1>');
-    _$write($out, name);
+    _$write($out, name); // components/pages/user.html:8:10
     $out.write(' ');
-    _$write($out, surname);
+    _$write($out, surname); // components/pages/user.html:8:21
     $out.write('</h1>\n');
-    if (active) {
+    if (active) { // components/pages/user.html:9:15
       $out.write('    <p>Active user</p>\n');
     }
     $out.write('</article>\n');
   });
 
-  Fragment users({required String title, required List<({String name, bool active})> users, Fragment? footer}) =>
+  Fragment users({
+    required String title, // components/pages/users.html:2:10
+    required List<({String name, bool active})> users, // components/pages/users.html:3:10
+    Fragment? footer, // components/pages/users.html:4:11
+  }) =>
       Fragment._(($out) {
     $out.write('<section>\n  <h1>');
-    _$write($out, title);
+    _$write($out, title); // components/pages/users.html:8:10
     $out.write('</h1>\n  <ul>\n');
     {
-      var number = 1;
-      for (final user in (users)) {
-        if (user.active) {
+      var number = 1; // components/pages/users.html:10:5
+      for (final user in (users)) { // components/pages/users.html:10:16
+        if (user.active) { // components/pages/users.html:11:19
           $out.write('        <li>');
-          _$write($out, number);
+          _$write($out, number); // components/pages/users.html:12:16
           $out.write('. ');
-          _$write($out, user.name);
+          _$write($out, user.name); // components/pages/users.html:12:30
           $out.write('</li>\n');
         }
-        number++;
+        number++; // components/pages/users.html:10:5
       }
     }
     $out.write('  </ul>\n');
-    if (footer != null) {
+    if (footer != null) { // components/pages/users.html:16:15
       $out.write('    ');
-      _$write($out, footer);
+      _$write($out, footer); // components/pages/users.html:17:8
       $out.write('\n');
     }
     $out.write('</section>\n');
@@ -76,10 +87,12 @@ final class _Html$pages {
 final class _Html$pages$admin {
   const _Html$pages$admin();
 
-  Fragment dashboard({required int visits}) =>
+  Fragment dashboard({
+    required int visits, // components/pages/admin/dashboard.html:1:18
+  }) =>
       Fragment._(($out) {
     $out.write('<section>\n  <h1>Dashboard</h1>\n  <p>');
-    _$write($out, visits);
+    _$write($out, visits); // components/pages/admin/dashboard.html:5:9
     $out.write(' visits today</p>\n</section>\n');
   });
 }

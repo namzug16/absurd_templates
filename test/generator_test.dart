@@ -71,6 +71,24 @@ void main() {
     );
   });
 
+  test('conflicts name both paths and the Dart access path', () {
+    expect(
+      () => generateDartLibrary(
+        templateSourceByPath: {'pages/user.html': '', 'pages/user/a.html': ''},
+        className: 'Html',
+        templateDirectory: 'components',
+      ),
+      throwsA(
+        isA<Diagnostic>().having(
+          (d) => d.message,
+          'message',
+          'components/pages/user.html and components/pages/user/ would both '
+              'become Html.pages.user; rename one of them',
+        ),
+      ),
+    );
+  });
+
   group('fails fast on', () {
     final conflicts = {
       'a file and directory with the same name': {
@@ -96,7 +114,7 @@ void main() {
             templateSourceByPath: templates,
             className: 'Html',
           ),
-          throwsFormatException,
+          throwsA(isA<Diagnostic>()),
         );
       });
     }
@@ -105,7 +123,7 @@ void main() {
       expect(
         () =>
             generateDartLibrary(templateSourceByPath: {}, className: 'my-html'),
-        throwsFormatException,
+        throwsA(isA<Diagnostic>()),
       );
     });
   });

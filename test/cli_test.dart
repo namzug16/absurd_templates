@@ -5,11 +5,14 @@ import 'package:test/test.dart';
 final _absScript = File('bin/abs.dart').absolute.path;
 final _packageConfig = File('.dart_tool/package_config.json').absolute.path;
 
-Future<ProcessResult> _runAbs(Directory projectDirectory) => Process.run(
-  Platform.resolvedExecutable,
-  ['--packages=$_packageConfig', _absScript],
-  workingDirectory: projectDirectory.path,
-);
+Future<ProcessResult> _runAbs(
+  Directory projectDirectory, [
+  List<String> arguments = const [],
+]) => Process.run(Platform.resolvedExecutable, [
+  '--packages=$_packageConfig',
+  _absScript,
+  ...arguments,
+], workingDirectory: projectDirectory.path);
 
 void main() {
   late Directory projectDirectory;
@@ -67,7 +70,13 @@ class: Html
     final result = await _runAbs(projectDirectory);
 
     expect(result.exitCode, 1);
-    expect(result.stderr, 'abs: abs.yaml: "output" is required\n');
+    expect(result.stderr, '''
+error: "output" is required (see "abs help")
+  --> abs.yaml:1:1
+  |
+1 | input: components
+  | ^
+''');
   });
 
   test('committed examples/generated/html.dart is up to date', () async {
