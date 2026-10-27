@@ -6,6 +6,9 @@ publish_to: none
 environment:
   sdk: ^3.9.0
 
+executables:
+  abs:
+
 dependencies:
   path: ^1.9.0
   yaml: ^3.1.0
