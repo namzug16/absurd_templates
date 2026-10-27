@@ -3,4 +3,4 @@ library;
 
 export 'src/check.dart' show checkTemplates;
 export 'src/diagnostic.dart' show Diagnostic;
-export 'src/generator.dart' show generateDartLibrary;
+export 'src/generator.dart' show generateDartLibrary, generatedFileHeader;
