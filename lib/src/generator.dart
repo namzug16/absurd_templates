@@ -106,7 +106,8 @@ String generateDartLibrary({
 
   final output = StringBuffer()
     ..writeln(generatedFileHeader)
-    ..writeln('// ignore_for_file: type=lint')
+    // The helpers go unused when no template writes a value.
+    ..writeln('// ignore_for_file: type=lint, unused_element')
     ..writeln();
   _writeNamespace(output, root, isRoot: true);
   output.write(_fragmentSource);

@@ -227,6 +227,18 @@ error: Undefined class 'Strng'.
       expect(result.exitCode, 0);
     });
 
+    test('passes a template that writes no values', () async {
+      writeProjectFile('components/static.html', '<p>static</p>');
+
+      final result = await _runAbs(projectDirectory, [
+        'check',
+        'components/static.html',
+      ]);
+
+      expect(result.stdout, 'abs check: 1 template OK\n');
+      expect(result.exitCode, 0);
+    });
+
     test('fails when dart analyze cannot run', () async {
       writeProjectFile(
         'fake-bin/dart',
