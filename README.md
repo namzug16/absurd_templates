@@ -109,6 +109,14 @@ that renders them:
 cd examples && abs && dart main.dart
 ```
 
+## Coding agents
+
+[`skills/absurd-templates`](skills/absurd-templates/SKILL.md) is an agent
+skill that teaches template syntax, the `abs check` loop and how to fix its
+errors. Copy the folder into a project's `.claude/skills/` (or
+`~/.claude/skills/` for every project) to use it with Claude Code; other
+agents can read `SKILL.md` as plain instructions.
+
 ## Benchmark
 
 [`benchmark/`](benchmark) renders the same pages with abs, Jinja and Mustache
