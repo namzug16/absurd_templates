@@ -17,12 +17,36 @@ Usage:
                              naming conflicts and Dart errors (types, undefined
                              names). Checks every template when no file is
                              given. Exits with 1 when there are errors.
+  abs init                   Create a commented abs.yaml in this directory.
   abs help                   Show this message.
 
 abs.yaml, in the directory where abs runs:
   input: components                # directory scanned for .html templates
   output: lib/generated/html.dart  # file to generate
   class: Html                      # optional, defaults to Components
+''';
+
+const _initialConfig = '''
+# Absurd Templates configuration. abs reads this file from the directory it
+# runs in.
+#
+#   abs                    generate the Dart file below from the templates
+#   abs check [file.html]  check templates for errors without writing anything
+#   abs help               list every command
+
+# Required. Directory scanned recursively for .html templates. Each file
+# becomes a method and each subdirectory a namespace, in camelCase:
+#   components/header.html          -> Components.header()
+#   components/pages/user-page.html -> Components.pages.userPage(...)
+input: components
+
+# Required. The one self-contained Dart file to generate, including the
+# Fragment type, so no runtime package is needed. abs only overwrites files
+# it generated itself.
+output: lib/generated/html.dart
+
+# Optional. Name of the generated entry class. Defaults to Components.
+# class: Html
 ''';
 
 typedef _Project = ({
@@ -39,6 +63,8 @@ Future<void> main(List<String> arguments) async {
         _generate(_loadProject());
       case ['check', ...final files]:
         exitCode = await _check(_loadProject(), files);
+      case ['init']:
+        _init();
       case ['help' || '--help' || '-h']:
         stdout.write(_usage);
       default:
@@ -50,6 +76,22 @@ Future<void> main(List<String> arguments) async {
     stderr.writeln(diagnostic.format());
     exitCode = 1;
   }
+}
+
+void _init() {
+  final configFile = File(_configFileName);
+  if (configFile.existsSync()) {
+    throw Diagnostic(
+      '$_configFileName already exists in ${Directory.current.path}; '
+      'abs init does not overwrite it',
+      path: _configFileName,
+    );
+  }
+  configFile.writeAsStringSync(_initialConfig);
+  stdout.writeln(
+    'abs: created $_configFileName; put your .html templates in components/ '
+    'and run abs',
+  );
 }
 
 void _generate(_Project project) {

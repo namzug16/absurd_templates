@@ -85,6 +85,33 @@ class: Html
     );
   });
 
+  test('init creates a working abs.yaml and never overwrites it', () async {
+    final initResult = await _runAbs(projectDirectory, ['init']);
+
+    expect(initResult.exitCode, 0);
+    expect(initResult.stdout, startsWith('abs: created abs.yaml'));
+    final configFile = File('${projectDirectory.path}/abs.yaml');
+    final config = configFile.readAsStringSync();
+    expect(config, contains('input: components\n'));
+    expect(config, contains('# class: Html\n'));
+
+    writeProjectFile('components/header.html', '<header></header>');
+    final generateResult = await _runAbs(projectDirectory);
+    expect(generateResult.exitCode, 0);
+    expect(
+      File(
+        '${projectDirectory.path}/lib/generated/html.dart',
+      ).readAsStringSync(),
+      contains('abstract final class Components {'),
+    );
+
+    configFile.writeAsStringSync('input: mine\n');
+    final secondInitResult = await _runAbs(projectDirectory, ['init']);
+    expect(secondInitResult.exitCode, 1);
+    expect(secondInitResult.stderr, contains('abs.yaml already exists'));
+    expect(configFile.readAsStringSync(), 'input: mine\n');
+  });
+
   test('defaults the class name to Components', () async {
     writeProjectFile('abs.yaml', 'input: components\noutput: out.dart\n');
     writeProjectFile('components/header.html', '<header></header>');

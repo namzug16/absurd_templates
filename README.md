@@ -14,7 +14,8 @@ dart compile exe bin/abs.dart -o abs
 
 ## Configure
 
-`abs.yaml` in your project root:
+`abs.yaml` in your project root. `abs init` creates it with comments that
+explain every option:
 
 ```yaml
 input: components             # required, scanned recursively for .html
