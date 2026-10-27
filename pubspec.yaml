@@ -1,0 +1,15 @@
+name: absurd_templates
+description: Absurd Templates - HTML-first templates compiled into one self-contained Dart file.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  path: ^1.9.0
+  yaml: ^3.1.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0
