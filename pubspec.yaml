@@ -10,7 +10,6 @@ executables:
   abs:
 
 dependencies:
-  path: ^1.9.0
   source_span: ^1.10.0
   yaml: ^3.1.0
 

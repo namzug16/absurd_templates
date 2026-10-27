@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:absurd_templates/absurd_templates.dart';
-import 'package:path/path.dart' as p;
 import 'package:source_span/source_span.dart';
 import 'package:yaml/yaml.dart';
 
@@ -181,20 +180,24 @@ String _plural(int count, String noun) =>
 /// Converts a template file path given on the command line into its path
 /// relative to the input directory.
 String _templatePathOf(_Project project, String file) {
-  final absoluteInputDirectory = p.absolute(project.inputDirectory);
-  final absoluteFile = p.absolute(file);
   if (!file.endsWith('.html')) {
     throw Diagnostic('"$file" is not a template: templates end with .html');
   }
-  if (!p.isWithin(absoluteInputDirectory, absoluteFile)) {
+  final absoluteInputDirectory = Directory.current.uri
+      .resolveUri(Uri.directory(project.inputDirectory))
+      .toFilePath();
+  final absoluteFile = Directory.current.uri
+      .resolveUri(Uri.file(file))
+      .toFilePath();
+  if (!absoluteFile.startsWith(absoluteInputDirectory)) {
     throw Diagnostic(
       '"$file" is not inside the input directory "${project.inputDirectory}" '
       'configured in $_configFileName',
     );
   }
-  final templatePath = p
-      .split(p.relative(absoluteFile, from: absoluteInputDirectory))
-      .join('/');
+  final templatePath = _toTemplatePath(
+    absoluteFile.substring(absoluteInputDirectory.length),
+  );
   if (!project.templateSourceByPath.containsKey(templatePath)) {
     throw Diagnostic('"$file" does not exist');
   }
@@ -259,7 +262,7 @@ _Project _loadProject() {
     return value;
   }
 
-  final inputDirectory = p.normalize(stringValue('input'));
+  final inputDirectory = _normalizeDirectory(stringValue('input'));
   final outputFile = stringValue('output');
   final className = stringValue('class', defaultValue: 'Components');
   if (!Directory(inputDirectory).existsSync()) {
@@ -275,8 +278,22 @@ _Project _loadProject() {
     templateSourceByPath: {
       for (final entity in Directory(inputDirectory).listSync(recursive: true))
         if (entity is File && entity.path.endsWith('.html'))
-          p.split(p.relative(entity.path, from: inputDirectory)).join('/'):
+          _toTemplatePath(entity.path.substring(inputDirectory.length + 1)):
               entity.readAsStringSync(),
     },
   );
+}
+
+/// [path] relative to the input directory, with "/" as separator on every
+/// platform.
+String _toTemplatePath(String path) =>
+    path.split(Platform.pathSeparator).join('/');
+
+/// [directory] without "." and ".." segments or a trailing separator, such
+/// as "components" for "./components/".
+String _normalizeDirectory(String directory) {
+  final normalized = Uri.directory(directory).normalizePath().toFilePath();
+  return normalized.length > 1 && normalized.endsWith(Platform.pathSeparator)
+      ? normalized.substring(0, normalized.length - 1)
+      : normalized;
 }

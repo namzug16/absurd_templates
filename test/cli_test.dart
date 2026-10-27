@@ -125,6 +125,19 @@ class: Html
     );
   });
 
+  test('accepts an input directory written as ./dir/', () async {
+    writeProjectFile('abs.yaml', 'input: ./components/\noutput: out.dart\n');
+    writeProjectFile('components/pages/home.html', '<p>home</p>');
+
+    final result = await _runAbs(projectDirectory, [
+      'check',
+      'components/pages/home.html',
+    ]);
+
+    expect(result.stdout, 'abs check: 1 template OK\n');
+    expect(result.exitCode, 0);
+  });
+
   test('rejects an empty class instead of using the default', () async {
     writeProjectFile('abs.yaml', 'input: components\noutput: o.dart\nclass:\n');
     writeProjectFile('components/header.html', '<header></header>');
