@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>{{ title|e }}</title>
+  </head>
+  <body>
+    <main>{% for user in users %}{% include 'card.html' %}{% endfor %}</main>
+  </body>
+</html>

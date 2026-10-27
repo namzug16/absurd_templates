@@ -1,0 +1,16 @@
+name: absurd_templates_benchmark
+description: Compares Absurd Templates with Jinja and Mustache.
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  absurd_templates:
+    path: ..
+  jinja: ^0.7.2
+  mustache_template: ^2.0.6
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

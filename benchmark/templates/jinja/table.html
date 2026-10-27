@@ -1,0 +1,12 @@
+<table>
+  {% for user in users %}
+  <tr>
+    <td>{{ loop.index }}</td>
+    <td>{{ user.name|e }}</td>
+    <td>{{ user.email|e }}</td>
+    {% if user.admin %}
+    <td>admin</td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>

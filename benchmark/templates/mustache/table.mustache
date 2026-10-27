@@ -1,0 +1,12 @@
+<table>
+  {{#users}}
+  <tr>
+    <td>{{number}}</td>
+    <td>{{name}}</td>
+    <td>{{email}}</td>
+    {{#admin}}
+    <td>admin</td>
+    {{/admin}}
+  </tr>
+  {{/users}}
+</table>

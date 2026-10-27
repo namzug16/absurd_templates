@@ -108,3 +108,8 @@ that renders them:
 ```sh
 cd examples && abs && dart main.dart
 ```
+
+## Benchmark
+
+[`benchmark/`](benchmark) renders the same pages with abs, Jinja and Mustache
+and prints how long each takes; see its README for results.

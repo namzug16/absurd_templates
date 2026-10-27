@@ -1,0 +1,10 @@
+<x-props user="({String name, String email, String bio, bool admin})"></x-props>
+
+<article class="card">
+  <h2>{{ user.name }}</h2>
+  <x-if case="user.admin">
+    <span class="badge">admin</span>
+  </x-if>
+  <p>{{ user.email }}</p>
+  <p>{{ user.bio }}</p>
+</article>

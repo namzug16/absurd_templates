@@ -1,0 +1,8 @@
+<article class="card">
+  <h2>{{ user.name|e }}</h2>
+  {% if user.admin %}
+  <span class="badge">admin</span>
+  {% endif %}
+  <p>{{ user.email|e }}</p>
+  <p>{{ user.bio|e }}</p>
+</article>
