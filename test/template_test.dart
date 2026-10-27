@@ -7,7 +7,7 @@ void main() {
     final compiled = compileTemplate('''
 <x-props
   title="String"
-  users="List&lt;({String name, bool active})>"
+  users="List<({String name, bool active})>"
   footer="Fragment?"
 ></x-props>
 
@@ -106,6 +106,11 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
       ),
       '<x-props a="int">': ('must be closed right away with </x-props>', 1, 1),
       '<x-props\n  a\n></x-props>': ('parameter "a" needs a Dart type', 2, 3),
+      '<x-props a="List&lt;String>"></x-props>': (
+        'write the type of "a" as plain Dart',
+        1,
+        13,
+      ),
       '<x-props class="int"></x-props>': (
         '"class" is not a valid parameter',
         1,

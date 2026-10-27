@@ -90,9 +90,8 @@ the generated file also lead back to the template.
 ```
 
 - `<x-props>` must come first; attribute = parameter name, value = Dart type,
-  written as plain Dart (`List<String>`; the escaped `List&lt;String>` also
-  works). Nullable types become optional parameters, all others are
-  `required`.
+  written as plain Dart (`List<String>`, never `List&lt;String>`). Nullable
+  types become optional parameters, all others are `required`.
 - `{{ }}`, `in="..."` and `case="..."` accept only a declared variable or its
   fields (`title`, `user.name`, `pair.$1`), never other Dart code: compute
   values in Dart and pass them in as props.

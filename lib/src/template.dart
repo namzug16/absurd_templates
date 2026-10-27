@@ -305,6 +305,12 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
                     '"$name" is not a valid parameter name; $_nameRules',
                     attribute.offset,
                   )
+                else if (attribute.value?.contains('&') ?? false)
+                  fail(
+                    'write the type of "$name" as plain Dart, such as '
+                    'List<String>; HTML entities like &lt; are not decoded',
+                    attribute.offset,
+                  )
                 else if (attribute.value?.trim() case final type?
                     when type.isNotEmpty)
                   '    ${type.endsWith('?') ? '' : 'required '}$type $name, '
@@ -460,7 +466,7 @@ Map<String, _Attribute> _parseAttributes(
     attributes[name] = rawValue == null
         ? (value: null, offset: nameOffset)
         : (
-            value: _decodeEntities(rawValue),
+            value: rawValue,
             offset:
                 nameOffset +
                 match[0]!.indexOf(rawValue, match[0]!.indexOf('=') + 1),
@@ -468,14 +474,6 @@ Map<String, _Attribute> _parseAttributes(
   }
   return attributes;
 }
-
-String _decodeEntities(String value) => value
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&quot;', '"')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&apos;', "'")
-    .replaceAll('&amp;', '&');
 
 String _dartStringLiteral(String value) {
   final escaped = value
