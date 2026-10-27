@@ -92,4 +92,76 @@ error: "output" is required (see "abs help")
       reason: 'run abs in examples/ and commit the result',
     );
   });
+
+  group('abs check', () {
+    setUp(() {
+      writeProjectFile('abs.yaml', 'input: components\noutput: out.dart\n');
+      writeProjectFile(
+        'components/ok.html',
+        '<x-props name="String"></x-props>{{ name }}',
+      );
+    });
+
+    test('maps Dart errors back to the template line', () async {
+      writeProjectFile('components/broken.html', '''
+<x-props
+  name="Strng"
+  users="List&lt;({String name})>"
+></x-props>
+<x-for in="users" as="user">
+  <li>{{ user.nmae }}</li>
+</x-for>
+''');
+
+      final result = await _runAbs(projectDirectory, ['check']);
+
+      expect(result.exitCode, 1);
+      expect(
+        result.stdout,
+        contains('''
+error: Undefined class 'Strng'.
+  --> components/broken.html:2:9
+  |
+2 |   name="Strng"
+  |         ^
+'''),
+      );
+      expect(
+        result.stdout,
+        contains('''
+  --> components/broken.html:6:10
+  |
+6 |   <li>{{ user.nmae }}</li>
+  |          ^
+'''),
+      );
+      expect(
+        result.stdout,
+        endsWith('2 errors and 0 warnings in 2 templates\n'),
+      );
+      expect(File('${projectDirectory.path}/out.dart').existsSync(), isFalse);
+    });
+
+    test('checks only the given files', () async {
+      writeProjectFile('components/broken.html', '{{ missing }}');
+
+      final result = await _runAbs(projectDirectory, [
+        'check',
+        'components/ok.html',
+      ]);
+
+      expect(result.stdout, 'abs check: 1 template OK\n');
+      expect(result.exitCode, 0);
+    });
+
+    test('rejects files outside the input directory', () async {
+      final result = await _runAbs(projectDirectory, ['check', 'other.html']);
+
+      expect(result.exitCode, 1);
+      expect(
+        result.stderr,
+        contains('"other.html" is not inside the input directory "components"'),
+      );
+    });
+  });
 }

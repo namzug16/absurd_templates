@@ -11,6 +11,10 @@ Absurd Templates: compiles HTML templates into one self-contained Dart file.
 
 Usage:
   abs                        Generate the output file configured in abs.yaml.
+  abs check [file.html ...]  Check templates without writing anything: syntax,
+                             naming conflicts and Dart errors (types, undefined
+                             names). Checks every template when no file is
+                             given. Exits with 1 when there are errors.
   abs help                   Show this message.
 
 abs.yaml, in the directory where abs runs:
@@ -31,6 +35,8 @@ Future<void> main(List<String> arguments) async {
     switch (arguments) {
       case []:
         _generate(_loadProject());
+      case ['check', ...final files]:
+        exitCode = await _check(_loadProject(), files);
       case ['help' || '--help' || '-h']:
         stdout.write(_usage);
       default:
@@ -54,7 +60,12 @@ void _generate(_Project project) {
       templateDirectory: project.inputDirectory,
     );
   } on Diagnostic catch (diagnostic) {
-    stderr.writeln(diagnostic.format());
+    stderr
+      ..writeln(diagnostic.format())
+      ..writeln()
+      ..writeln(
+        'abs: nothing was generated; run "abs check" to list every problem',
+      );
     exitCode = 1;
     return;
   }
@@ -66,6 +77,59 @@ void _generate(_Project project) {
     '${project.templateSourceByPath.length} templates in '
     '${stopwatch.elapsedMilliseconds}ms',
   );
+}
+
+Future<int> _check(_Project project, List<String> files) async {
+  final checkedTemplatePaths = files.isEmpty
+      ? project.templateSourceByPath.keys.toList()
+      : [for (final file in files) _templatePathOf(project, file)];
+  final diagnostics = await checkTemplates(
+    templateSourceByPath: project.templateSourceByPath,
+    checkedTemplatePaths: checkedTemplatePaths,
+    className: project.className,
+    templateDirectory: project.inputDirectory,
+  );
+  for (final diagnostic in diagnostics) {
+    stdout
+      ..writeln(diagnostic.format())
+      ..writeln();
+  }
+  final errorCount = diagnostics.where((d) => d.isError).length;
+  final warningCount = diagnostics.length - errorCount;
+  final templates = _plural(checkedTemplatePaths.length, 'template');
+  stdout.writeln(
+    diagnostics.isEmpty
+        ? 'abs check: $templates OK'
+        : 'abs check: ${_plural(errorCount, 'error')} and '
+              '${_plural(warningCount, 'warning')} in $templates',
+  );
+  return errorCount == 0 ? 0 : 1;
+}
+
+String _plural(int count, String noun) =>
+    '$count $noun${count == 1 ? '' : 's'}';
+
+/// Converts a template file path given on the command line into its path
+/// relative to the input directory.
+String _templatePathOf(_Project project, String file) {
+  final absoluteInputDirectory = p.absolute(project.inputDirectory);
+  final absoluteFile = p.absolute(file);
+  if (!file.endsWith('.html')) {
+    throw Diagnostic('"$file" is not a template: templates end with .html');
+  }
+  if (!p.isWithin(absoluteInputDirectory, absoluteFile)) {
+    throw Diagnostic(
+      '"$file" is not inside the input directory "${project.inputDirectory}" '
+      'configured in $_configFileName',
+    );
+  }
+  final templatePath = p
+      .split(p.relative(absoluteFile, from: absoluteInputDirectory))
+      .join('/');
+  if (!project.templateSourceByPath.containsKey(templatePath)) {
+    throw Diagnostic('"$file" does not exist');
+  }
+  return templatePath;
 }
 
 _Project _loadProject() {

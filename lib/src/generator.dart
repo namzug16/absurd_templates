@@ -87,6 +87,14 @@ String generateDartLibrary({
   return output.toString();
 }
 
+/// Throws a [Diagnostic] when [templatePaths] cannot all become distinct
+/// Dart members, without compiling any template.
+void checkTemplateNames({
+  required Iterable<String> templatePaths,
+  required String className,
+  String templateDirectory = '',
+}) => _buildNamespaceTree(templatePaths, className, templateDirectory);
+
 /// The path of a template as shown to users, such as
 /// `components/pages/user.html`.
 String displayTemplatePath(String templateDirectory, String templatePath) =>

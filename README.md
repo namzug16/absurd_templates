@@ -22,8 +22,32 @@ output: lib/generated/html.dart # required
 class: Html                   # optional, defaults to Components
 ```
 
-Run `abs` to generate the output file. Errors name the file, line and
-column, show the source line, and say how to fix them.
+Run `abs` to generate the output file.
+
+## Checking templates
+
+```sh
+abs check                              # every template
+abs check components/pages/users.html  # only these files
+```
+
+`abs check` writes nothing. It reports syntax errors, naming conflicts and
+Dart errors such as unknown types, undefined names and typos in fields, all
+mapped back to the template. It exits with 1 when there are errors:
+
+```text
+error: The getter 'nmae' isn't defined for the type '({bool active, String name})'.
+  --> components/pages/users.html:12:16
+   |
+12 |         <li>{{ user.nmae }}</li>
+   |                ^
+
+abs check: 1 error and 0 warnings in 1 template
+```
+
+Every statement in the generated file that comes from template code ends in
+a `// components/pages/users.html:12:16` comment, so errors reported against
+the generated file also lead back to the template.
 
 ## Templates
 
