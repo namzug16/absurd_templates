@@ -1,6 +1,10 @@
 import 'dart:io';
 
+import 'package:absurd_templates/src/cli.dart';
+import 'package:absurd_templates/src/vendor.dart';
 import 'package:test/test.dart';
+
+import '../tool/build_vendored_source.dart';
 
 final _absScript = File('bin/abs.dart').absolute.path;
 final _packageConfig = File('.dart_tool/package_config.json').absolute.path;
@@ -331,5 +335,94 @@ error: Undefined class 'Strng'.
         contains('"other.html" is not inside the input directory "components"'),
       );
     });
+  });
+
+  test('lib/src/vendored_source.dart is up to date', () {
+    expect(
+      File(vendoredSourceFile).readAsStringSync(),
+      buildVendoredSourceFile(),
+      reason: 'run "dart run tool/build_vendored_source.dart"',
+    );
+  });
+
+  test('absVersion matches pubspec.yaml', () {
+    expect(
+      File('pubspec.yaml').readAsStringSync(),
+      contains('\nversion: $absVersion\n'),
+    );
+  });
+
+  group('abs vendor', () {
+    late File vendoredFile;
+
+    setUp(() {
+      writeProjectFile('abs.yaml', 'input: components\noutput: out.dart\n');
+      writeProjectFile(
+        'components/header.html',
+        '<x-props title="String"></x-props><h1>{{ title }}</h1>',
+      );
+      vendoredFile = File('${projectDirectory.path}/tool/abs.dart');
+    });
+
+    test('writes a copy that works without abs or any package', () async {
+      final vendorResult = await _runAbs(projectDirectory, ['vendor']);
+      expect(
+        vendorResult.stdout,
+        startsWith('abs: vendored abs $absVersion into tool/abs.dart'),
+      );
+
+      final copyResult = await Process.run(Platform.resolvedExecutable, [
+        'tool/abs.dart',
+      ], workingDirectory: projectDirectory.path);
+      expect(copyResult.stderr, '');
+      expect(copyResult.exitCode, 0);
+
+      // The installed abs would write exactly what the copy wrote.
+      final installedResult = await _runAbs(projectDirectory);
+      expect(installedResult.stdout, startsWith('abs: unchanged out.dart'));
+
+      final secondVendorResult = await _runAbs(projectDirectory, ['vendor']);
+      expect(
+        secondVendorResult.stdout,
+        'abs: tool/abs.dart is already abs $absVersion\n',
+      );
+    });
+
+    test('updates a copy from an older abs', () async {
+      writeProjectFile(
+        'tool/abs.dart',
+        vendoredFileContent('tool/abs.dart', version: '0.0.1'),
+      );
+
+      final result = await _runAbs(projectDirectory, ['vendor']);
+
+      expect(
+        result.stdout,
+        'abs: updated tool/abs.dart from abs 0.0.1 to $absVersion\n',
+      );
+      expect(
+        vendoredFile.readAsStringSync(),
+        vendoredFileContent('tool/abs.dart'),
+      );
+    });
+
+    final messageByExistingFile = {
+      'void main() {}\n': 'was not written by "abs vendor"',
+      '${vendoredFileContent('tool/abs.dart')}// my change\n': 'was edited',
+      vendoredFileContent('tool/abs.dart', version: '99.0.0'):
+          'newer than this abs',
+    };
+    for (final MapEntry(key: existingContent, value: message)
+        in messageByExistingFile.entries) {
+      test('leaves the file alone: $message', () async {
+        writeProjectFile('tool/abs.dart', existingContent);
+
+        final result = await _runAbs(projectDirectory, ['vendor']);
+
+        expect(result.exitCode, 1);
+        expect(result.stderr, contains(message));
+        expect(vendoredFile.readAsStringSync(), existingContent);
+      });
+    }
   });
 }

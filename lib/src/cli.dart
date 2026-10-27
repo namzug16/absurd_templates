@@ -15,8 +15,14 @@ final _configLinePattern = RegExp(
   r"""(?:[ \t]+(?:"([^"]*)"|'([^']*)'|([^\s#"'\[\]{}&*!|>%@`](?:[^#]|(?<=\S)#)*?)))?"""
   r"""(?:[ \t]+#.*)?[ \t]*$""",
 );
-const _usage = '''
-Absurd Templates: compiles HTML templates into one self-contained Dart file.
+
+/// Version of abs; keep it equal to the version in pubspec.yaml.
+const absVersion = '0.1.0';
+
+/// The help text; [canVendor] is false in a vendored copy.
+String _usage({required bool canVendor}) =>
+    '''
+Absurd Templates $absVersion: compiles HTML templates into one self-contained Dart file.
 
 Usage:
   abs                        Generate the output file configured in abs.yaml.
@@ -25,6 +31,7 @@ Usage:
                              names). Checks every template when no file is
                              given. Exits with 1 when there are errors.
   abs init                   Create a commented abs.yaml in this directory.
+${canVendor ? _vendorUsage : ''}  abs version                Print the version of abs.
   abs help                   Show this message.
 
 abs.yaml, in the directory where abs runs:
@@ -63,8 +70,19 @@ typedef _Project = ({
   Map<String, String> templateSourceByPath,
 });
 
-/// Runs the abs command line with [arguments], as `abs` does.
-Future<void> runAbs(List<String> arguments) async {
+const _vendorUsage = '''
+  abs vendor [file.dart]     Copy abs into this project as one Dart file with
+                             no dependencies, tool/abs.dart by default; run it
+                             with "dart run tool/abs.dart". Run it again with
+                             a newer abs to update the copy.
+''';
+
+/// Runs the abs command line with [arguments]. [vendor] runs `abs vendor`;
+/// a vendored copy has none.
+Future<void> runAbs(
+  List<String> arguments, {
+  void Function(List<String> arguments)? vendor,
+}) async {
   try {
     switch (arguments) {
       case []:
@@ -73,8 +91,18 @@ Future<void> runAbs(List<String> arguments) async {
         exitCode = await _check(_loadProject(), files);
       case ['init']:
         _init();
+      case ['vendor', ...final vendorArguments]:
+        if (vendor == null) {
+          throw Diagnostic(
+            'this is a vendored copy of abs $absVersion, which cannot vendor '
+            'itself; to update it, run "abs vendor" with an installed abs',
+          );
+        }
+        vendor(vendorArguments);
+      case ['version' || '--version']:
+        stdout.writeln(absVersion);
       case ['help' || '--help' || '-h']:
-        stdout.write(_usage);
+        stdout.write(_usage(canVendor: vendor != null));
       default:
         throw Diagnostic(
           'unknown command "abs ${arguments.join(' ')}"; run "abs help"',
