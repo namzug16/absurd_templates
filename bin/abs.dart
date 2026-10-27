@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:absurd_templates/absurd_templates.dart';
 import 'package:path/path.dart' as p;
+import 'package:source_span/source_span.dart';
 import 'package:yaml/yaml.dart';
 
 const _configFileName = 'abs.yaml';
@@ -168,8 +169,8 @@ _Project _loadProject() {
   }
   final configSource = configFile.readAsStringSync();
 
-  Diagnostic configError(String message, [YamlNode? node]) {
-    final start = node?.span.start;
+  Diagnostic configError(String message, [SourceSpan? span]) {
+    final start = span?.start;
     return Diagnostic(
       message,
       path: _configFileName,
@@ -185,16 +186,7 @@ _Project _loadProject() {
   try {
     config = loadYamlNode(configSource);
   } on YamlException catch (error) {
-    final start = error.span?.start;
-    throw Diagnostic(
-      'invalid YAML: ${error.message}',
-      path: _configFileName,
-      line: start == null ? null : start.line + 1,
-      column: start == null ? null : start.column + 1,
-      lineText: start == null
-          ? null
-          : configSource.split('\n').elementAtOrNull(start.line),
-    );
+    throw configError('invalid YAML: ${error.message}', error.span);
   }
   final configMap = config is YamlMap
       ? config
@@ -205,7 +197,7 @@ _Project _loadProject() {
     if (!_configKeys.contains(key.value)) {
       throw configError(
         'unknown key "${key.value}"; supported keys: ${_configKeys.join(', ')}',
-        key,
+        key.span,
       );
     }
   }
@@ -218,7 +210,7 @@ _Project _loadProject() {
         node == null
             ? '"$key" is required (see "abs help")'
             : '"$key" must be a non-empty string',
-        node ?? configMap,
+        (node ?? configMap).span,
       );
     }
     return value;
@@ -230,7 +222,7 @@ _Project _loadProject() {
   if (!Directory(inputDirectory).existsSync()) {
     throw configError(
       'input directory "$inputDirectory" does not exist',
-      configMap.nodes['input'],
+      configMap.nodes['input']?.span,
     );
   }
   return (
