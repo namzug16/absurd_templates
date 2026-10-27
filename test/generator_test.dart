@@ -10,6 +10,8 @@ const _specTemplates = {
 <x-props name="String" active="bool"></x-props>
 <p>{{ name }}<x-if case="active">!</x-if></p>''',
   'pages/admin/dashboard.html': '<b>admin</b>',
+  'pages/list.html':
+      '<x-props items="List&lt;Fragment>"></x-props><ul>{{ items }}</ul>',
   'pages/users.html': '''
 <x-props
   title="String"
@@ -43,6 +45,7 @@ void main() {
   print(users.toHtml());
   print(Html.pages.userPage(name: "O'Neil", active: true).toHtml());
   print(Html.pages.admin.dashboard().toHtml());
+  print(Html.pages.list(items: [Html.pages.admin.dashboard(), Html.pages.admin.dashboard()]).toHtml());
 }
 ''');
 
@@ -57,6 +60,7 @@ void main() {
 <footer>&copy; &lt;Ada &amp; Grace&gt;</footer>
 <p>O&#39;Neil!</p>
 <b>admin</b>
+<ul><b>admin</b><b>admin</b></ul>
 ''');
   });
 

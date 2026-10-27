@@ -23,10 +23,15 @@ const _$htmlEscape = HtmlEscape(
   HtmlEscapeMode(escapeLtGt: true, escapeQuot: true, escapeApos: true),
 );
 
-/// Writes fragments as HTML and every other non-null value as escaped text.
+/// Writes fragments as HTML, iterables item by item, and every other non-null
+/// value as escaped text.
 void _$write(StringBuffer out, Object? value) {
   if (value is Fragment) {
     value._render(out);
+  } else if (value is Iterable) {
+    for (final item in value) {
+      _$write(out, item);
+    }
   } else if (value != null) {
     out.write(_$htmlEscape.convert(value.toString()));
   }
