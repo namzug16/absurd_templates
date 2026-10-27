@@ -98,6 +98,17 @@ class: Html
     );
   });
 
+  test('rejects an empty class instead of using the default', () async {
+    writeProjectFile('abs.yaml', 'input: components\noutput: o.dart\nclass:\n');
+    writeProjectFile('components/header.html', '<header></header>');
+
+    final result = await _runAbs(projectDirectory);
+
+    expect(result.exitCode, 1);
+    expect(result.stderr, contains('"class" must be a non-empty string'));
+    expect(result.stderr, contains('abs.yaml:3:'));
+  });
+
   test('reports errors and exits with 1', () async {
     writeProjectFile('abs.yaml', 'input: components\n');
 

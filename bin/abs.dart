@@ -204,7 +204,8 @@ _Project _loadProject() {
 
   String stringValue(String key, {String? defaultValue}) {
     final node = configMap.nodes[key];
-    final value = node?.value ?? defaultValue;
+    // The default only applies when the key is absent, not when it is empty.
+    final value = node == null ? defaultValue : node.value;
     if (value is! String || value.isEmpty) {
       throw configError(
         node == null
