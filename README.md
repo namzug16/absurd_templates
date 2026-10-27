@@ -77,6 +77,9 @@ the generated file also lead back to the template.
 - `{{ value }}` escapes values; `Fragment` values are inserted as HTML; `null`
   renders nothing, so `{{ footer }}` handles an optional `Fragment?`; lists
   such as `List<Fragment>` render each item in order.
+- Escaping makes values safe as HTML text and inside quoted attributes, not
+  as URLs: `href="{{ url }}"` with `javascript:alert(1)` still runs code.
+  Check URLs used in `href`, `src` or `action` in Dart before passing them in.
 - `<x-for in as [indexed index-as]>` and `<x-if case>` render only their children.
   A directive tag alone on its line is removed together with that line.
 - Directives inside `<!-- -->` are left alone.
