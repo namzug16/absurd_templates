@@ -49,6 +49,7 @@ Run `abs`.
 - `{{ expr }}` escapes values; `Fragment` values are inserted as HTML; `null`
   renders nothing.
 - `<x-for in as [indexed index-as]>` and `<x-if case>` render only their children.
+  A directive tag alone on its line is removed together with that line.
 - Directives inside `<!-- -->` are left alone.
 
 ## Generated API

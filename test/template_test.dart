@@ -29,7 +29,6 @@ $out.write('</h1>\n');
 {
   var number = 1;
   for (final user in (users)) {
-    $out.write('\n');
     if (user.active) {
       $out.write('<li>');
       _$write($out, number);
@@ -41,7 +40,20 @@ $out.write('</h1>\n');
     number++;
   }
 }
-$out.write('\n');
+''');
+  });
+
+  test('removes lines that only hold a directive tag', () {
+    final compiled = compileTemplate(
+      '<ul>\n  <x-if case="a">\n    <li>a</li>\n  </x-if>\n</ul>',
+      'a.html',
+    );
+    expect(compiled.body, r'''
+$out.write('<ul>\n');
+if (a) {
+  $out.write('    <li>a</li>\n');
+}
+$out.write('</ul>');
 ''');
   });
 

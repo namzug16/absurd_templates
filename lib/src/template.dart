@@ -17,6 +17,8 @@ final _attributePattern = RegExp(
   r'''([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?''',
 );
 final _leadingWhitespacePattern = RegExp(r'\s*');
+final _restOfBlankLinePattern = RegExp(r'[ \t]*(\r?\n|$)');
+final _trailingIndentationPattern = RegExp(r'[ \t]*$');
 
 /// A template compiled into the parameter list and body of a Dart function.
 ///
@@ -48,6 +50,24 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
     if (pendingText.isEmpty) return;
     emit('\$out.write(${_dartStringLiteral(pendingText.toString())});');
     pendingText.clear();
+  }
+
+  /// Returns where to continue after the tag at [tagStart]..[tagEnd].
+  ///
+  /// A tag alone on its line takes the whole line with it, so directives
+  /// do not leave blank lines in the rendered HTML.
+  int positionAfterDirectiveTag(int tagStart, int tagEnd) {
+    final lineStart = source.lastIndexOf('\n', tagStart) + 1;
+    final restOfLine = _restOfBlankLinePattern.matchAsPrefix(source, tagEnd);
+    if (restOfLine == null ||
+        source.substring(lineStart, tagStart).trim().isNotEmpty) {
+      return tagEnd;
+    }
+    final text = pendingText.toString();
+    pendingText
+      ..clear()
+      ..write(text.replaceFirst(_trailingIndentationPattern, ''));
+    return restOfLine.end;
   }
 
   String requiredAttribute(
@@ -108,6 +128,7 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
         if (openDirectives.lastOrNull?.name != tag[1]) {
           fail('unexpected </x-${tag[1]}>', offset);
         }
+        position = positionAfterDirectiveTag(offset, tag.end);
         flushText();
         final directive = openDirectives.removeLast();
         if (directive.indexVariable case final indexVariable?) {
@@ -117,7 +138,6 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
         }
         indentLevel--;
         emit('}');
-        position = tag.end;
 
       default:
         final tag =
@@ -161,6 +181,7 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
                 .end;
 
           case 'for':
+            position = positionAfterDirectiveTag(offset, tag.end);
             flushText();
             _rejectUnknownAttributes(
               attributes,
@@ -196,6 +217,7 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
             ));
 
           case 'if':
+            position = positionAfterDirectiveTag(offset, tag.end);
             flushText();
             _rejectUnknownAttributes(attributes, {'case'}, fail, offset);
             final condition = requiredAttribute(attributes, 'case', offset);

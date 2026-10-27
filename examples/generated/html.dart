@@ -36,40 +36,38 @@ final class _Html$pages {
     _$write($out, name);
     $out.write(' ');
     _$write($out, surname);
-    $out.write('</h1>\n  ');
+    $out.write('</h1>\n');
     if (active) {
-      $out.write('\n    <p>Active user</p>\n  ');
+      $out.write('    <p>Active user</p>\n');
     }
-    $out.write('\n</article>\n');
+    $out.write('</article>\n');
   });
 
   Fragment users({required String title, required List<({String name, bool active})> users, Fragment? footer}) =>
       Fragment._(($out) {
     $out.write('<section>\n  <h1>');
     _$write($out, title);
-    $out.write('</h1>\n  <ul>\n    ');
+    $out.write('</h1>\n  <ul>\n');
     {
       var number = 1;
       for (final user in (users)) {
-        $out.write('\n      ');
         if (user.active) {
-          $out.write('\n        <li>');
+          $out.write('        <li>');
           _$write($out, number);
           $out.write('. ');
           _$write($out, user.name);
-          $out.write('</li>\n      ');
+          $out.write('</li>\n');
         }
-        $out.write('\n    ');
         number++;
       }
     }
-    $out.write('\n  </ul>\n  ');
+    $out.write('  </ul>\n');
     if (footer != null) {
-      $out.write('\n    ');
+      $out.write('    ');
       _$write($out, footer);
-      $out.write('\n  ');
+      $out.write('\n');
     }
-    $out.write('\n</section>\n');
+    $out.write('</section>\n');
   });
 
   _Html$pages$admin get admin => const _Html$pages$admin();
