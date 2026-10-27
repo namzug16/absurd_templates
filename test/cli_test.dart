@@ -69,4 +69,18 @@ class: Html
     expect(result.exitCode, 1);
     expect(result.stderr, 'abs: abs.yaml: "output" is required\n');
   });
+
+  test('committed examples/generated/html.dart is up to date', () async {
+    final generatedFile = File('examples/generated/html.dart');
+    final committedLibrary = generatedFile.readAsStringSync();
+
+    final result = await _runAbs(Directory('examples'));
+
+    expect(result.exitCode, 0);
+    expect(
+      generatedFile.readAsStringSync(),
+      committedLibrary,
+      reason: 'run abs in examples/ and commit the result',
+    );
+  });
 }

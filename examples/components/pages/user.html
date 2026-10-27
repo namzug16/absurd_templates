@@ -1,0 +1,12 @@
+<x-props
+  name="String"
+  surname="String"
+  active="bool"
+></x-props>
+
+<article>
+  <h1>{{ name }} {{ surname }}</h1>
+  <x-if case="active">
+    <p>Active user</p>
+  </x-if>
+</article>

@@ -64,3 +64,13 @@ final page = Html.layout.primary(
 );
 final String html = page.toHtml();
 ```
+
+## Example
+
+[`examples/`](examples) has components, their generated
+[`html.dart`](examples/generated/html.dart) and a [`main.dart`](examples/main.dart)
+that renders them:
+
+```sh
+cd examples && abs && dart main.dart
+```

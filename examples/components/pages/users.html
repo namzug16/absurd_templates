@@ -1,0 +1,19 @@
+<x-props
+  title="String"
+  users="List&lt;({String name, bool active})>"
+  footer="Fragment?"
+></x-props>
+
+<section>
+  <h1>{{ title }}</h1>
+  <ul>
+    <x-for in="users" as="user" indexed="1" index-as="number">
+      <x-if case="user.active">
+        <li>{{ number }}. {{ user.name }}</li>
+      </x-if>
+    </x-for>
+  </ul>
+  <x-if case="footer != null">
+    {{ footer }}
+  </x-if>
+</section>
