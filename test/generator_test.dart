@@ -1,0 +1,112 @@
+import 'dart:io';
+
+import 'package:absurd_templates/absurd_templates.dart';
+import 'package:test/test.dart';
+
+const _specTemplates = {
+  'footer.html': '<footer>&copy; {{ "<Ada & Grace>" }}</footer>',
+  'pages/user-page.html': '''
+<x-props name="String" active="bool"></x-props>
+<p>{{ name }}<x-if case="active">!</x-if></p>''',
+  'pages/admin/dashboard.html': '<b>admin</b>',
+  'pages/users.html': '''
+<x-props
+  title="String"
+  users="List&lt;({String name, bool active})>"
+  footer="Fragment?"
+></x-props>
+<h1>{{ title }}</h1>
+<x-for in="users" as="user" indexed="1" index-as="number"><x-if case="user.active"><li>{{ number }}. {{ user.name }}</li></x-if></x-for>
+<x-if case="footer != null">{{ footer }}</x-if>''',
+};
+
+void main() {
+  test('generated library compiles and renders', () async {
+    final directory = await Directory.systemTemp.createTemp('abs_generator_');
+    addTearDown(() => directory.delete(recursive: true));
+    File('${directory.path}/html.dart').writeAsStringSync(
+      generateDartLibrary(
+        templateSourceByPath: _specTemplates,
+        className: 'Html',
+      ),
+    );
+    File('${directory.path}/main.dart').writeAsStringSync(r'''
+import 'html.dart';
+
+void main() {
+  final users = Html.pages.users(
+    title: 'Users',
+    users: [(name: 'Ada', active: true), (name: 'Grace', active: false), (name: 'Linus', active: true)],
+    footer: Html.footer(),
+  );
+  print(users.toHtml());
+  print(Html.pages.userPage(name: "O'Neil", active: true).toHtml());
+  print(Html.pages.admin.dashboard().toHtml());
+}
+''');
+
+    final result = await Process.run(Platform.resolvedExecutable, [
+      '${directory.path}/main.dart',
+    ]);
+
+    expect(result.stderr, '');
+    expect(result.stdout, '''
+<h1>Users</h1>
+<li>1. Ada</li><li>3. Linus</li>
+<footer>&copy; &lt;Ada &amp; Grace&gt;</footer>
+<p>O&#39;Neil!</p>
+<b>admin</b>
+''');
+  });
+
+  test('nested namespace classes are private', () {
+    final library = generateDartLibrary(
+      templateSourceByPath: {'pages/admin/dashboard.html': ''},
+      className: 'Html',
+    );
+    expect(library, contains('static const pages = _Html\$pages();'));
+    expect(
+      library,
+      contains('_Html\$pages\$admin get admin => const _Html\$pages\$admin();'),
+    );
+  });
+
+  group('fails fast on', () {
+    final conflicts = {
+      'a file and directory with the same name': {
+        'pages/user.html': '',
+        'pages/user/profile.html': '',
+      },
+      'names that collide after conversion': {
+        'user-page.html': '',
+        'user_page.html': '',
+      },
+      'directories that collide after conversion': {
+        'admin-area/a.html': '',
+        'admin_area/b.html': '',
+      },
+      'names that are not Dart identifiers': {'404.html': ''},
+      'reserved Dart names': {'switch.html': ''},
+    };
+    for (final MapEntry(key: description, value: templates)
+        in conflicts.entries) {
+      test(description, () {
+        expect(
+          () => generateDartLibrary(
+            templateSourceByPath: templates,
+            className: 'Html',
+          ),
+          throwsFormatException,
+        );
+      });
+    }
+
+    test('invalid class names', () {
+      expect(
+        () =>
+            generateDartLibrary(templateSourceByPath: {}, className: 'my-html'),
+        throwsFormatException,
+      );
+    });
+  });
+}
