@@ -10,6 +10,7 @@ const _specTemplates = {
 <x-props name="String" active="bool"></x-props>
 <p>{{ name }}<x-if case="active">!</x-if></p>''',
   'pages/admin/dashboard.html': '<b>admin</b>',
+  'text.html': '<x-props value="String"></x-props>{{ value }}',
   'pages/list.html':
       '<x-props items="List&lt;Fragment>"></x-props><ul>{{ items }}</ul>',
   'pages/users.html': '''
@@ -34,9 +35,25 @@ void main() {
       ),
     );
     File('${directory.path}/main.dart').writeAsStringSync(r'''
+import 'dart:convert';
+
 import 'html.dart';
 
 void main() {
+  const htmlEscape = HtmlEscape(
+    HtmlEscapeMode(escapeLtGt: true, escapeQuot: true, escapeApos: true),
+  );
+  for (final text in [
+    String.fromCharCodes([for (var code = 0; code < 128; code++) code]),
+    '',
+    'plain text',
+    '&&<<>>""\'\'',
+    'é ñ 中文 😀 <😀> &😀&',
+  ]) {
+    if (Html.text(value: text).toHtml() != htmlEscape.convert(text)) {
+      print('escaping differs from HtmlEscape for ${jsonEncode(text)}');
+    }
+  }
   final users = Html.pages.users(
     title: 'Users',
     users: [(name: 'Ada', active: true), (name: 'Grace', active: false), (name: 'Linus', active: true)],

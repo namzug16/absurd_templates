@@ -39,22 +39,22 @@ Dart 3.13.4 (AOT), macos, 2 s per engine after a 500 ms warm-up
 
 card: one small component
   engine     time per render   renders/s  vs abs
-  abs                2.61 µs     382,525  baseline      ████████████████
-  jinja              5.33 µs     187,486  2.0x slower   ████████████████████████████████
-  mustache           2.44 µs     410,580  1.1x faster   ███████████████
+  abs                0.99 µs   1,005,723  baseline      ██████
+  jinja              5.30 µs     188,775  5.3x slower   ████████████████████████████████
+  mustache           2.43 µs     412,245  2.4x slower   ███████████████
 
 table: 1000 rows with a loop, an index and a condition
   engine     time per render   renders/s  vs abs
-  abs                1.56 ms         639  baseline      █████████████
-  jinja              3.87 ms         258  2.5x slower   ████████████████████████████████
-  mustache           1.86 ms         537  1.2x slower   ███████████████
+  abs               622.2 µs       1,607  baseline      █████
+  jinja              3.88 ms         258  6.2x slower   ████████████████████████████████
+  mustache           1.85 ms         541  3.0x slower   ███████████████
 
 page: a layout composing 100 card components
   engine     time per render   renders/s  vs abs
-  abs               265.8 µs       3,762  baseline      █
-  jinja              8.20 ms         122  30.8x slower  ████████████████████████████████
-  mustache          258.1 µs       3,874  1.0x faster   █
+  abs                97.0 µs      10,313  baseline      █
+  jinja              8.22 ms         122  84.8x slower  ████████████████████████████████
+  mustache          255.9 µs       3,907  2.6x slower   █
 ```
 
 Jinja falls furthest behind on `page`, where it includes the card template
-100 times per render. Mustache renders about as fast as abs.
+100 times per render.

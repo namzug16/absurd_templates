@@ -19,10 +19,6 @@ final class Fragment {
   }
 }
 
-const _$htmlEscape = HtmlEscape(
-  HtmlEscapeMode(escapeLtGt: true, escapeQuot: true, escapeApos: true),
-);
-
 /// Writes fragments as HTML, iterables item by item, and every other non-null
 /// value as escaped text.
 void _$write(StringBuffer out, Object? value) {
@@ -33,8 +29,30 @@ void _$write(StringBuffer out, Object? value) {
       _$write(out, item);
     }
   } else if (value != null) {
-    out.write(_$htmlEscape.convert(value.toString()));
+    _$writeEscaped(out, value.toString());
   }
+}
+
+/// Writes [text] with &, <, >, " and ' replaced by the same entities as
+/// dart:convert's HtmlEscape, which is several times slower.
+void _$writeEscaped(StringBuffer out, String text) {
+  var unwrittenStart = 0;
+  for (var index = 0; index < text.length; index++) {
+    final entity = switch (text.codeUnitAt(index)) {
+      0x26 => '&amp;',
+      0x3C => '&lt;',
+      0x3E => '&gt;',
+      0x22 => '&quot;',
+      0x27 => '&#39;',
+      _ => null,
+    };
+    if (entity == null) continue;
+    out
+      ..write(text.substring(unwrittenStart, index))
+      ..write(entity);
+    unwrittenStart = index + 1;
+  }
+  out.write(unwrittenStart == 0 ? text : text.substring(unwrittenStart));
 }
 ''';
 
@@ -89,8 +107,6 @@ String generateDartLibrary({
   final output = StringBuffer()
     ..writeln(generatedFileHeader)
     ..writeln('// ignore_for_file: type=lint')
-    ..writeln()
-    ..writeln("import 'dart:convert';")
     ..writeln();
   _writeNamespace(output, root, isRoot: true);
   output.write(_fragmentSource);
