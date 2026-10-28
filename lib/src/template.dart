@@ -58,6 +58,9 @@ final _trailingIndentationPattern = RegExp(r'[ \t]*$');
 /// Statements with user code end in a `// path:line:column` comment pointing
 /// back at the template, so Dart errors can be traced to their source.
 ///
+/// Each `<x-slot>` inside a `<x-fragment>` becomes a `Fragment._` closure
+/// passed as the prop it names.
+///
 /// [renderedFragments] lists every `<x-fragment>` in the template, so the
 /// generator can reject templates that render each other in a cycle.
 typedef CompiledTemplate = ({
@@ -83,6 +86,9 @@ const _forUsage =
 const _ifUsage = '<x-if case="condition">';
 const _ifNotUsage = '<x-if-not case="condition">';
 const _fragmentUsage = '<x-fragment _="/ui/label.html" text="Users" />';
+const _slotUsage =
+    '<x-fragment _="/layout/primary.html"><x-slot name="content">...</x-slot>'
+    '</x-fragment>';
 const _conditionalAttributeUsage =
     '?isDisabled:disabled, ?isActive:class="active" or ?!isActive:class="idle"';
 const _spreadAttributeUsage =
@@ -110,6 +116,8 @@ CompiledTemplate compileTemplate(
   final pendingText = StringBuffer();
   final openDirectives =
       <({String name, String? indexVariable, int offset, int variableCount})>[];
+  // Prop names already passed to each open <x-fragment>, innermost last.
+  final argumentNamesOfOpenFragments = <Set<String>>[];
   // Props, then the variables of each enclosing <x-for>, innermost last.
   final variablesInScope = <String>[];
   final lineStartOffsets = [0, for (final m in '\n'.allMatches(source)) m.end];
@@ -500,6 +508,19 @@ CompiledTemplate compileTemplate(
   }
 
   while (true) {
+    // An open <x-fragment> holds only <x-slot> tags and whitespace.
+    if (openDirectives.lastOrNull?.name == 'fragment') {
+      position = _leadingWhitespacePattern.matchAsPrefix(source, position)!.end;
+      if (position < source.length &&
+          !source.startsWith('<x-slot', position) &&
+          !source.startsWith('</x-fragment', position)) {
+        fail(
+          '<x-fragment> can only contain <x-slot> tags; put content in a '
+          'slot, like $_slotUsage',
+          position,
+        );
+      }
+    }
     final match = _directiveStartPattern
         .allMatches(source, position)
         .firstOrNull;
@@ -548,17 +569,10 @@ CompiledTemplate compileTemplate(
         final tag =
             _closeTagPattern.matchAsPrefix(source, offset) ??
             fail(
-              'malformed closing tag; expected </x-for>, </x-if> or '
-              '</x-if-not>',
+              'malformed closing tag; expected </x-for>, </x-if>, '
+              '</x-if-not>, </x-fragment> or </x-slot>',
               offset,
             );
-        if (tag[1] == 'fragment') {
-          fail(
-            '<x-fragment> is a void tag and has no closing tag; remove '
-            '</x-fragment> and end the tag with />',
-            offset,
-          );
-        }
         final innermost = openDirectives.lastOrNull;
         if (innermost == null) {
           fail('</x-${tag[1]}> has no matching <x-${tag[1]}>', offset);
@@ -581,7 +595,15 @@ CompiledTemplate compileTemplate(
           emit('}');
         }
         indentLevel--;
-        emit('}');
+        switch (innermost.name) {
+          case 'fragment':
+            argumentNamesOfOpenFragments.removeLast();
+            emit('));', sourceOffset: innermost.offset);
+          case 'slot':
+            emit('}),');
+          default:
+            emit('}');
+        }
 
       default:
         final tag =
@@ -609,13 +631,6 @@ CompiledTemplate compileTemplate(
           }
         }
         final isSelfClosing = tag[3]!.isNotEmpty;
-        if (tagName == 'fragment' && !isSelfClosing) {
-          fail(
-            '<x-fragment> is a void tag; end it with />, '
-            'like $_fragmentUsage',
-            offset,
-          );
-        }
         if (tagName != 'fragment' && isSelfClosing) {
           fail(
             '<x-$tagName> cannot end with />; close it with </x-$tagName>',
@@ -804,13 +819,25 @@ CompiledTemplate compileTemplate(
               for (final MapEntry(key: name, value: attribute)
                   in attributes.entries)
                 if (name != '_')
-                  '  $name: ${fragmentArgument(name, attribute)}, '
+                  '$name: ${fragmentArgument(name, attribute)}, '
                       '${sourceMarker(attribute.offset)}',
             ];
             flushText();
             emit('_\$write(\$out, $accessPath(', sourceOffset: offset);
+            indentLevel++;
             arguments.forEach(emit);
-            emit('));', sourceOffset: offset);
+            if (isSelfClosing) {
+              indentLevel--;
+              emit('));', sourceOffset: offset);
+            } else {
+              argumentNamesOfOpenFragments.add(attributes.keys.toSet());
+              openDirectives.add((
+                name: 'fragment',
+                indexVariable: null,
+                offset: offset,
+                variableCount: 0,
+              ));
+            }
             final location = locate(offset);
             renderedFragments.add((
               templatePath: renderedTemplatePath,
@@ -819,10 +846,53 @@ CompiledTemplate compileTemplate(
               lineText: location.lineText,
             ));
 
+          case 'slot':
+            if (openDirectives.lastOrNull?.name != 'fragment') {
+              fail(
+                '<x-slot> only goes directly inside <x-fragment>, like '
+                '$_slotUsage',
+                offset,
+              );
+            }
+            rejectUnknownAttributes(attributes, 'slot', const ['name']);
+            final slotName = requiredAttribute(
+              attributes,
+              'name',
+              directive: 'slot',
+              usage: _slotUsage,
+              tagOffset: offset,
+            );
+            if (!_isValidName(slotName.value)) {
+              fail(
+                '"${slotName.value}" is not a valid prop name; $_nameRules',
+                slotName.offset,
+              );
+            }
+            if (!argumentNamesOfOpenFragments.last.add(slotName.value)) {
+              fail(
+                'prop "${slotName.value}" is already passed to this '
+                '<x-fragment>; pass each prop once',
+                slotName.offset,
+              );
+            }
+            position = positionAfterDirectiveTag(offset, tag.end);
+            emit(
+              '${slotName.value}: Fragment._((\$out) {',
+              sourceOffset: slotName.offset,
+            );
+            indentLevel++;
+            openDirectives.add((
+              name: 'slot',
+              indexVariable: null,
+              offset: offset,
+              variableCount: 0,
+            ));
+
           default:
             fail(
               '<x-$tagName> is not a directive; supported directives are '
-              '<x-props>, <x-for>, <x-if>, <x-if-not> and <x-fragment>',
+              '<x-props>, <x-for>, <x-if>, <x-if-not>, <x-fragment> and '
+              '<x-slot>',
               offset,
             );
         }

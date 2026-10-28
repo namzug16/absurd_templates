@@ -125,9 +125,26 @@ directory starting with `/`. Every other attribute is one of its props:
   build mixed text such as `"Hi {{ name }}"` in Dart.
 - Omit nullable props to pass `null`.
 
-It is a void tag: end it with `/>`, never `</x-fragment>`. `abs check`
-reports unknown templates, missing or unknown props and wrong types at the
-attribute. A template cannot render itself, directly or through others.
+End it with `/>`, or close it with `</x-fragment>` to pass markup with
+`<x-slot>`:
+
+```html
+<x-fragment _="/layout/primary.html" title="{{ title }}">
+  <x-slot name="content">
+    <main>{{ body }}</main>
+  </x-slot>
+</x-fragment>
+```
+
+`<x-slot name="content">` passes its children as the `content` prop, which
+must be a `Fragment` or `Fragment?`. Inside a slot you use the variables of
+the template you are writing, not the props of the one being rendered.
+`<x-fragment>` may hold only `<x-slot>` tags and whitespace, and each prop is
+passed once, as an attribute or a slot.
+
+`abs check` reports unknown templates, missing or unknown props and wrong
+types at the attribute or slot. A template cannot render itself, directly or
+through others.
 
 ### Conditional attributes
 

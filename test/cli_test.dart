@@ -290,6 +290,12 @@ error: Undefined class 'Strng'.
   colour="red" />
 <x-fragment _="/ok.html" />
 ''');
+      writeProjectFile('fragments/slotted.html', '''
+<x-props count="int"></x-props>
+<x-fragment _="/ui/badge.html" count="{{ count }}">
+  <x-slot name="label">Users</x-slot>
+</x-fragment>
+''');
 
       final result = await _runAbs(projectDirectory, ['check']);
 
@@ -314,6 +320,13 @@ error: The named parameter 'colour' isn't defined.
         contains('''
 error: The named parameter 'name' is required, but there's no corresponding argument.
   --> fragments/other.html:4:1
+'''),
+      );
+      expect(
+        result.stdout,
+        contains('''
+error: The argument type 'Fragment' can't be assigned to the parameter type 'String'. 
+  --> fragments/slotted.html:3:17
 '''),
       );
     });

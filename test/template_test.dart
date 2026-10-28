@@ -70,6 +70,44 @@ $out.write('</p>');
     ));
   });
 
+  test('compiles <x-slot> into a Fragment argument', () {
+    final compiled = compileTemplate(
+      '<x-props title="String" users="List<String>"></x-props>\n'
+          '<div>\n'
+          '  <x-fragment _="/layout/card.html" title="{{ title }}">\n'
+          '    <x-slot name="body">\n'
+          '      <x-for in="users" as="user">\n'
+          '        <p>{{ user }}</p>\n'
+          '      </x-for>\n'
+          '    </x-slot>\n'
+          '    <x-slot name="footer"><b>{{ title }}</b></x-slot>\n'
+          '  </x-fragment>\n'
+          '</div>',
+      'a.html',
+      accessPathByTemplatePath: {'layout/card.html': 'Html.layout.card'},
+    );
+    expect(compiled.body, r'''
+$out.write('<div>\n  ');
+_$write($out, Html.layout.card( // a.html:3:3
+  title: title, // a.html:3:44
+  body: Fragment._(($out) { // a.html:4:19
+    for (final user in (users)) { // a.html:5:18
+      $out.write('        <p>');
+      _$write($out, user); // a.html:6:15
+      $out.write('</p>\n');
+    }
+  }),
+  footer: Fragment._(($out) { // a.html:9:19
+    $out.write('<b>');
+    _$write($out, title); // a.html:9:33
+    $out.write('</b>');
+  }),
+)); // a.html:3:3
+$out.write('</div>');
+''');
+    expect(compiled.renderedFragments.single.templatePath, 'layout/card.html');
+  });
+
   test('removes lines that only hold a directive tag', () {
     final compiled = compileTemplate(
       '<x-props a="bool"></x-props>\n'
@@ -305,8 +343,8 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
           ('"index-as" and "as" must name different variables', 1, 79),
       '</x-if>': ('</x-if> has no matching <x-if>', 1, 1),
       '<x-include></x-include>': (
-        'supported directives are <x-props>, <x-for>, <x-if>, <x-if-not> '
-            'and <x-fragment>',
+        'supported directives are <x-props>, <x-for>, <x-if>, <x-if-not>, '
+            '<x-fragment> and <x-slot>',
         1,
         1,
       ),
@@ -318,11 +356,60 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         1,
         16,
       ),
-      '<x-fragment _="/ui/label.html">': ('end it with />', 1, 1),
+      '<x-fragment _="/ui/label.html">': ('<x-fragment> is never closed', 1, 1),
       '<x-fragment _="/ui/label.html" /></x-fragment>': (
-        'has no closing tag',
+        '</x-fragment> has no matching <x-fragment>',
         1,
         34,
+      ),
+      '<x-fragment _="/ui/label.html">\n  <p>hi</p></x-fragment>': (
+        '<x-fragment> can only contain <x-slot> tags',
+        2,
+        3,
+      ),
+      '<x-slot name="a"></x-slot>': (
+        '<x-slot> only goes directly inside <x-fragment>',
+        1,
+        1,
+      ),
+      '<x-fragment _="/ui/label.html"><x-slot name="a"><x-slot name="b">'
+          '</x-slot></x-slot></x-fragment>': (
+        '<x-slot> only goes directly inside <x-fragment>',
+        1,
+        49,
+      ),
+      '<x-fragment _="/ui/label.html"><x-slot></x-slot></x-fragment>': (
+        '<x-slot> needs a non-empty "name"',
+        1,
+        32,
+      ),
+      '<x-fragment _="/ui/label.html"><x-slot name="a" as="b"></x-slot>'
+          '</x-fragment>': (
+        '<x-slot> does not support the "as" attribute',
+        1,
+        53,
+      ),
+      '<x-fragment _="/ui/label.html"><x-slot name="a-b"></x-slot>'
+          '</x-fragment>': (
+        '"a-b" is not a valid prop name',
+        1,
+        46,
+      ),
+      '<x-fragment _="/ui/label.html" text="a"><x-slot name="text"></x-slot>'
+          '</x-fragment>': (
+        'prop "text" is already passed to this <x-fragment>',
+        1,
+        55,
+      ),
+      '<x-fragment _="/ui/label.html"><x-slot name="a" /></x-fragment>': (
+        '<x-slot> cannot end with />',
+        1,
+        32,
+      ),
+      '<x-fragment _="/ui/label.html"><x-slot name="a"></x-fragment>': (
+        '</x-fragment> found while <x-slot> from line 1 is still open',
+        1,
+        49,
       ),
       '<x-props a="int"></x-props><x-fragment _="/ui/label.html" a={{ a }} />':
           ('quote {{ }} values, like a="{{ a }}"', 1, 59),

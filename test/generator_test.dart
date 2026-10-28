@@ -26,6 +26,14 @@ const _specTemplates = {
   selected="Map<String, String>"
 ></x-props>
 <p class="option" ...extra ?isSelected:...selected ?!isSelected:title="idle">''',
+  'layout/card.html': '''
+<x-props title="String" body="Fragment" footer="Fragment?"></x-props>
+<section><h2>{{ title }}</h2>{{ body }}{{ footer }}</section>''',
+  'pages/cards.html': '''
+<x-props names="List<String>"></x-props>
+<x-for in="names" as="name"><x-fragment _="/layout/card.html" title="{{ name }}">
+  <x-slot name="body"><p>Hi {{ name }}</p></x-slot>
+</x-fragment></x-for>''',
   'pages/users.html': '''
 <x-props
   title="String"
@@ -77,6 +85,7 @@ void main() {
   print(Html.pages.admin.dashboard().toHtml());
   print(Html.pages.list(items: [Html.pages.admin.dashboard(), Html.pages.admin.dashboard()]).toHtml());
   print(Html.pages.badges(counts: [1, 2]).toHtml());
+  print(Html.pages.cards(names: ['Ada', '<Grace>']).toHtml());
   print(Html.ui.option(extra: {'data-value': '"<a>'}, isSelected: true, selected: {'aria-selected': 'true'}).toHtml());
   print(Html.ui.option(isSelected: false, selected: {'title': 'never rendered'}).toHtml());
   print(Html.ui.option(isSelected: true, selected: {'title': 'once'}).toHtml());
@@ -103,6 +112,7 @@ void main() {
 <b>admin</b>
 <ul><b>admin</b><b>admin</b></ul>
 <b>Tom &amp; Jerry&#39;s: 1</b><b>Tom &amp; Jerry&#39;s: 2</b>
+<section><h2>Ada</h2><p>Hi Ada</p></section><section><h2>&lt;Grace&gt;</h2><p>Hi &lt;Grace&gt;</p></section>
 <p class="option" data-value="&quot;&lt;a&gt;" aria-selected="true">
 <p class="option" title="idle">
 <p class="option" title="once">
