@@ -9,7 +9,7 @@
   <ul>
     <x-for in="users" as="user" indexed="1" index-as="number">
       <x-if case="user.active">
-        <li>{{ number }}. {{ user.name }}</li>
+        <x-fragment _="/ui/user-item.html" number="{{ number }}" name="{{ user.name }}" />
       </x-if>
     </x-for>
   </ul>

@@ -10,6 +10,8 @@ abstract final class Html {
   static const layout = _Html$layout();
 
   static const pages = _Html$pages();
+
+  static const ui = _Html$ui();
 }
 
 final class _Html$layout {
@@ -61,11 +63,12 @@ final class _Html$pages {
       var number = 1; // fragments/pages/users.html:10:5
       for (final user in (users)) { // fragments/pages/users.html:10:16
         if (user.active) { // fragments/pages/users.html:11:19
-          $out.write('        <li>');
-          _$write($out, number); // fragments/pages/users.html:12:16
-          $out.write('. ');
-          _$write($out, user.name); // fragments/pages/users.html:12:30
-          $out.write('</li>\n');
+          $out.write('        ');
+          _$write($out, Html.ui.userItem( // fragments/pages/users.html:12:9
+            number: number, // fragments/pages/users.html:12:52
+            name: user.name, // fragments/pages/users.html:12:72
+          )); // fragments/pages/users.html:12:9
+          $out.write('\n');
         }
         number++; // fragments/pages/users.html:10:5
       }
@@ -88,6 +91,22 @@ final class _Html$pages$admin {
     $out.write('<section>\n  <h1>Dashboard</h1>\n  <p>');
     _$write($out, visits); // fragments/pages/admin/dashboard.html:5:9
     $out.write(' visits today</p>\n</section>\n');
+  });
+}
+
+final class _Html$ui {
+  const _Html$ui();
+
+  Fragment userItem({
+    required int number, // fragments/ui/user-item.html:1:18
+    required String name, // fragments/ui/user-item.html:1:29
+  }) =>
+      Fragment._(($out) {
+    $out.write('<li>');
+    _$write($out, number); // fragments/ui/user-item.html:3:8
+    $out.write('. ');
+    _$write($out, name); // fragments/ui/user-item.html:3:22
+    $out.write('</li>');
   });
 }
 

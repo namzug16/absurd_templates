@@ -108,6 +108,25 @@ the generated file also lead back to the template.
   A directive tag alone on its line is removed together with that line.
 - Directives inside `<!-- -->` are left alone.
 
+### Rendering another template
+
+```html
+<x-fragment _="/ui/badge.html" label="Users" count="{{ users.length }}" />
+```
+
+`<x-fragment>` renders the template named by `_`, a path from the input
+directory starting with `/`. Every other attribute is one of its props:
+
+- `label="Users"` passes the text as a `String`.
+- `count="{{ users.length }}"` passes the value as it is, so `int`,
+  `Fragment` and list props work. Quote it, and write only the `{{ }}`:
+  build mixed text such as `"Hi {{ name }}"` in Dart.
+- Omit nullable props to pass `null`.
+
+It is a void tag: end it with `/>`, never `</x-fragment>`. `abs check`
+reports unknown templates, missing or unknown props and wrong types at the
+attribute. A template cannot render itself, directly or through others.
+
 ## Generated API
 
 `fragments/pages/user-page.html` becomes `Html.pages.userPage(...)`, returning
