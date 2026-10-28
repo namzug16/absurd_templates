@@ -44,6 +44,32 @@ $out.write('</h1>\n');
 ''');
   });
 
+  test('compiles <x-fragment> into a call with one argument per prop', () {
+    final compiled = compileTemplate(
+      '<x-props position="int"></x-props>\n'
+          '<p><x-fragment _="/ui/label.html" text="it\'s" '
+          'position="{{ position }}" /></p>',
+      'a.html',
+      accessPathByTemplatePath: {'ui/label.html': 'Html.ui.label'},
+    );
+    expect(compiled.body, r'''
+$out.write('<p>');
+_$write($out, Html.ui.label( // a.html:2:4
+  text: 'it\'s', // a.html:2:41
+  position: position, // a.html:2:57
+)); // a.html:2:4
+$out.write('</p>');
+''');
+    expect(compiled.renderedFragments.single, (
+      templatePath: 'ui/label.html',
+      line: 2,
+      column: 4,
+      lineText:
+          '<p><x-fragment _="/ui/label.html" text="it\'s" '
+          'position="{{ position }}" /></p>',
+    ));
+  });
+
   test('removes lines that only hold a directive tag', () {
     final compiled = compileTemplate(
       '<x-props a="bool"></x-props>\n'
@@ -168,7 +194,49 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
       '<x-props xs="List<int>"></x-props><x-for in="xs" as="x" indexed="1" index-as="x"></x-for>':
           ('"index-as" and "as" must name different variables', 1, 79),
       '</x-if>': ('</x-if> has no matching <x-if>', 1, 1),
-      '<x-include></x-include>': ('accept a Fragment parameter', 1, 1),
+      '<x-include></x-include>': (
+        'supported directives are <x-props>, <x-for>, <x-if> and <x-fragment>',
+        1,
+        1,
+      ),
+      '<x-if case="a" />': ('<x-if> cannot end with />', 1, 1),
+      '<x-fragment />': ('<x-fragment> needs a non-empty "_"', 1, 1),
+      '<x-fragment _="ui/label.html" />': ('starting with / and ending', 1, 16),
+      '<x-fragment _="/missing.html" />': (
+        'there is no template /missing.html',
+        1,
+        16,
+      ),
+      '<x-fragment _="/ui/label.html">': ('end it with />', 1, 1),
+      '<x-fragment _="/ui/label.html" /></x-fragment>': (
+        'has no closing tag',
+        1,
+        34,
+      ),
+      '<x-props a="int"></x-props><x-fragment _="/ui/label.html" a={{ a }} />':
+          ('quote {{ }} values, like a="{{ a }}"', 1, 59),
+      '<x-props a="int"></x-props><x-fragment _="/ui/label.html" a="#{{ a }}" />':
+          ('must be plain text or exactly one quoted {{ }}', 1, 62),
+      '<x-fragment _="/ui/label.html" text="{{ b }}" />': (
+        '"b" is not declared',
+        1,
+        41,
+      ),
+      '<x-fragment _="/ui/label.html" text="Tom &amp; Jerry" />': (
+        'write "&amp;" in prop "text" as the plain character',
+        1,
+        42,
+      ),
+      '<x-fragment _="/ui/label.html" active />': (
+        'prop "active" needs a value',
+        1,
+        32,
+      ),
+      '<x-fragment _="/ui/label.html" user-name="Ada" />': (
+        '"user-name" is not a valid prop name',
+        1,
+        43,
+      ),
       '<x-if case="a>': ('malformed <x-...> tag', 1, 1),
       'a\n  {{ name': ('"{{" is never closed with "}}"', 2, 3),
       '{{ }}': ('"{{ }}" is empty', 1, 1),
@@ -178,7 +246,11 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         in invalidTemplates.entries) {
       test(source, () {
         expect(
-          () => compileTemplate(source, 'a.html'),
+          () => compileTemplate(
+            source,
+            'a.html',
+            accessPathByTemplatePath: {'ui/label.html': 'Html.ui.label'},
+          ),
           throwsA(
             isA<Diagnostic>()
                 .having((d) => d.message, 'message', contains(message))

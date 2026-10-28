@@ -13,6 +13,12 @@ const _specTemplates = {
   'text.html': '<x-props value="String"></x-props>{{ value }}',
   'pages/list.html':
       '<x-props items="List<Fragment>"></x-props><ul>{{ items }}</ul>',
+  'ui/badge.html':
+      '<x-props label="String" count="int" note="String?"></x-props>'
+      '<b>{{ label }}: {{ count }}{{ note }}</b>',
+  'pages/badges.html': '''
+<x-props counts="List<int>"></x-props>
+<x-for in="counts" as="count"><x-fragment _="/ui/badge.html" label="Tom & Jerry's" count="{{ count }}" /></x-for>''',
   'pages/users.html': '''
 <x-props
   title="String"
@@ -63,6 +69,7 @@ void main() {
   print(Html.pages.userPage(name: "O'Neil", active: true).toHtml());
   print(Html.pages.admin.dashboard().toHtml());
   print(Html.pages.list(items: [Html.pages.admin.dashboard(), Html.pages.admin.dashboard()]).toHtml());
+  print(Html.pages.badges(counts: [1, 2]).toHtml());
 }
 ''');
 
@@ -78,6 +85,7 @@ void main() {
 <p>O&#39;Neil!</p>
 <b>admin</b>
 <ul><b>admin</b><b>admin</b></ul>
+<b>Tom &amp; Jerry&#39;s: 1</b><b>Tom &amp; Jerry&#39;s: 2</b>
 ''');
   });
 
@@ -108,6 +116,60 @@ void main() {
               'become Html.pages.user; rename one of them',
         ),
       ),
+    );
+  });
+
+  group('rejects templates that render themselves', () {
+    final messageByTemplates = {
+      'directly': (
+        {'a.html': '<x-fragment _="/a.html" />'},
+        'closes the cycle /a.html -> /a.html',
+      ),
+      'through other templates': (
+        {
+          'a.html': '<x-fragment _="/b.html" />',
+          'b.html': '<p>\n  <x-fragment _="/c.html" /></p>',
+          'c.html': '<x-fragment _="/a.html" />',
+        },
+        'closes the cycle /a.html -> /b.html -> /c.html -> /a.html',
+      ),
+    };
+    for (final MapEntry(key: description, value: (templates, message))
+        in messageByTemplates.entries) {
+      test(description, () {
+        expect(
+          () => generateDartLibrary(
+            templateSourceByPath: templates,
+            className: 'Html',
+            templateDirectory: 'fragments',
+          ),
+          throwsA(
+            isA<Diagnostic>()
+                .having((d) => d.message, 'message', contains(message))
+                .having(
+                  (d) => d.path,
+                  'path',
+                  'fragments/${templates.keys.last}',
+                )
+                .having((d) => d.line, 'line', 1)
+                .having((d) => d.column, 'column', 1),
+          ),
+        );
+      });
+    }
+  });
+
+  test('allows rendering the same template twice without a cycle', () {
+    expect(
+      generateDartLibrary(
+        templateSourceByPath: {
+          'a.html': '<x-fragment _="/b.html" /><x-fragment _="/c.html" />',
+          'b.html': '<x-fragment _="/c.html" />',
+          'c.html': '<p>c</p>',
+        },
+        className: 'Html',
+      ),
+      contains('_\$write(\$out, Html.c( // a.html:1:27'),
     );
   });
 

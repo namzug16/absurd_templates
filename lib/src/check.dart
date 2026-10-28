@@ -18,46 +18,78 @@ Future<List<Diagnostic>> checkTemplates({
   String templateDirectory = '',
 }) async {
   final diagnostics = <Diagnostic>[];
-  var namesAreValid = true;
+  Map<String, String>? accessPathByTemplatePath;
   try {
-    checkTemplateNames(
+    accessPathByTemplatePath = templateAccessPaths(
       templatePaths: templateSourceByPath.keys,
       className: className,
       templateDirectory: templateDirectory,
     );
   } on Diagnostic catch (diagnostic) {
     diagnostics.add(diagnostic);
-    namesAreValid = false;
   }
 
-  final compilableSourceByPath = <String, String>{};
-  for (final templatePath in checkedTemplatePaths) {
-    final source = templateSourceByPath[templatePath]!;
+  // Templates rendered with <x-fragment> are compiled and analyzed too, or
+  // the checked templates would call functions missing from the library.
+  final templatePathsToCompile = [...checkedTemplatePaths];
+  final renderedTemplatePathsByCompilablePath = <String, List<String>>{};
+  for (var index = 0; index < templatePathsToCompile.length; index++) {
+    final templatePath = templatePathsToCompile[index];
     try {
-      compileTemplate(
-        source,
+      final compiled = compileTemplate(
+        templateSourceByPath[templatePath]!,
         displayTemplatePath(templateDirectory, templatePath),
+        accessPathByTemplatePath: accessPathByTemplatePath,
       );
-      compilableSourceByPath[templatePath] = source;
+      final renderedTemplatePaths = [
+        for (final rendered in compiled.renderedFragments)
+          rendered.templatePath,
+      ];
+      renderedTemplatePathsByCompilablePath[templatePath] =
+          renderedTemplatePaths;
+      for (final renderedTemplatePath in renderedTemplatePaths) {
+        if (!templatePathsToCompile.contains(renderedTemplatePath)) {
+          templatePathsToCompile.add(renderedTemplatePath);
+        }
+      }
     } on Diagnostic catch (diagnostic) {
       diagnostics.add(diagnostic);
     }
   }
-
-  if (namesAreValid && compilableSourceByPath.isNotEmpty) {
-    diagnostics.addAll(
-      await _analyzeGeneratedLibrary(
-        generateDartLibrary(
-          templateSourceByPath: compilableSourceByPath,
-          className: className,
-          templateDirectory: templateDirectory,
-        ),
-        {
-          for (final MapEntry(key: templatePath, value: source)
-              in compilableSourceByPath.entries)
-            displayTemplatePath(templateDirectory, templatePath): source,
-        },
+  // A template that renders one with syntax errors cannot be analyzed.
+  int compilableCountBefore;
+  do {
+    compilableCountBefore = renderedTemplatePathsByCompilablePath.length;
+    renderedTemplatePathsByCompilablePath.removeWhere(
+      (_, renderedTemplatePaths) => !renderedTemplatePaths.every(
+        renderedTemplatePathsByCompilablePath.containsKey,
       ),
+    );
+  } while (renderedTemplatePathsByCompilablePath.length <
+      compilableCountBefore);
+
+  if (accessPathByTemplatePath != null &&
+      renderedTemplatePathsByCompilablePath.isNotEmpty) {
+    final compilableSourceByPath = {
+      for (final templatePath in renderedTemplatePathsByCompilablePath.keys)
+        templatePath: templateSourceByPath[templatePath]!,
+    };
+    final String library;
+    try {
+      library = generateDartLibrary(
+        templateSourceByPath: compilableSourceByPath,
+        className: className,
+        templateDirectory: templateDirectory,
+      );
+    } on Diagnostic catch (diagnostic) {
+      return [...diagnostics, diagnostic];
+    }
+    diagnostics.addAll(
+      await _analyzeGeneratedLibrary(library, {
+        for (final MapEntry(key: templatePath, value: source)
+            in compilableSourceByPath.entries)
+          displayTemplatePath(templateDirectory, templatePath): source,
+      }),
     );
   }
   return diagnostics;

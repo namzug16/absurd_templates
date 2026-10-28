@@ -272,6 +272,83 @@ error: Undefined class 'Strng'.
       expect(File('${projectDirectory.path}/out.dart').existsSync(), isFalse);
     });
 
+    test('maps <x-fragment> prop errors to their attributes', () async {
+      writeProjectFile(
+        'fragments/ui/badge.html',
+        '<x-props label="String" count="int"></x-props>{{ label }}{{ count }}',
+      );
+      writeProjectFile('fragments/page.html', '''
+<x-fragment _="/ui/badge.html" label="Users" count="3" />
+''');
+      writeProjectFile(
+        'fragments/undeclared.html',
+        '<x-fragment _="/ui/badge.html" count="{{ missing }}" />',
+      );
+      writeProjectFile('fragments/other.html', '''
+<x-fragment _="/ok.html"
+  name="Ada"
+  colour="red" />
+<x-fragment _="/ok.html" />
+''');
+
+      final result = await _runAbs(projectDirectory, ['check']);
+
+      expect(result.exitCode, 1);
+      expect(
+        result.stdout,
+        contains('''
+error: The argument type 'String' can't be assigned to the parameter type 'int'. 
+  --> fragments/page.html:1:53
+'''),
+      );
+      expect(result.stdout, contains('"missing" is not declared'));
+      expect(
+        result.stdout,
+        contains('''
+error: The named parameter 'colour' isn't defined.
+  --> fragments/other.html:3:11
+'''),
+      );
+      expect(
+        result.stdout,
+        contains('''
+error: The named parameter 'name' is required, but there's no corresponding argument.
+  --> fragments/other.html:4:1
+'''),
+      );
+    });
+
+    test('analyzes the templates a checked file renders', () async {
+      writeProjectFile(
+        'fragments/page.html',
+        '<x-fragment _="/ok.html" name="Ada" />',
+      );
+
+      final result = await _runAbs(projectDirectory, [
+        'check',
+        'fragments/page.html',
+      ]);
+
+      expect(result.stdout, 'abs check: 1 template OK\n');
+      expect(result.exitCode, 0);
+    });
+
+    test('rejects templates that render each other', () async {
+      writeProjectFile('fragments/a.html', '<x-fragment _="/b.html" />');
+      writeProjectFile('fragments/b.html', '<x-fragment _="/a.html" />');
+
+      final result = await _runAbs(projectDirectory, [
+        'check',
+        'fragments/a.html',
+      ]);
+
+      expect(result.exitCode, 1);
+      expect(
+        result.stdout,
+        contains('closes the cycle /a.html -> /b.html -> /a.html'),
+      );
+    });
+
     test('checks only the given files, once each', () async {
       writeProjectFile('fragments/broken.html', '{{ missing }}');
 

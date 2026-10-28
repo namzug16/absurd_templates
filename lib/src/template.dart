@@ -17,10 +17,16 @@ final _valuePathPattern = RegExp(
 final _directiveStartPattern = RegExp(r'<!--|\{\{|</?x-');
 const _attributeSource =
     r'''[^\s=/>"']+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?''';
-final _openTagPattern = RegExp('<x-([a-z-]+)((?:\\s+$_attributeSource)*)\\s*>');
+final _openTagPattern = RegExp(
+  '<x-([a-z-]+)((?:\\s+$_attributeSource)*)\\s*(/?)>',
+);
 final _closeTagPattern = RegExp(r'</x-([a-z-]+)\s*>');
 final _attributePattern = RegExp(
   r'''([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?''',
+);
+final _wholeInterpolationPattern = RegExp(r'^\{\{(.*)\}\}$');
+final _htmlEntityPattern = RegExp(
+  r'&(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#[xX][0-9a-fA-F]+);',
 );
 final _leadingWhitespacePattern = RegExp(r'\s*');
 final _restOfBlankLinePattern = RegExp(r'[ \t]*(\r?\n|$)');
@@ -32,7 +38,23 @@ final _trailingIndentationPattern = RegExp(r'[ \t]*$');
 /// `StringBuffer` named `$out`, using the generated `_$write` helper.
 /// Statements with user code end in a `// path:line:column` comment pointing
 /// back at the template, so Dart errors can be traced to their source.
-typedef CompiledTemplate = ({String parameters, String body});
+///
+/// [renderedFragments] lists every `<x-fragment>` in the template, so the
+/// generator can reject templates that render each other in a cycle.
+typedef CompiledTemplate = ({
+  String parameters,
+  String body,
+  List<RenderedFragment> renderedFragments,
+});
+
+/// A `<x-fragment>` tag: the template it renders, relative to the input
+/// directory, and where the tag is.
+typedef RenderedFragment = ({
+  String templatePath,
+  int line,
+  int column,
+  String lineText,
+});
 
 typedef _Attribute = ({String? value, int offset});
 
@@ -40,6 +62,7 @@ const _forUsage =
     '<x-for in="items" as="item"> or '
     '<x-for in="items" as="item" indexed="1" index-as="position">';
 const _ifUsage = '<x-if case="condition">';
+const _fragmentUsage = '<x-fragment _="/ui/label.html" text="Users" />';
 const _nameRules =
     'use a Dart identifier that starts with a letter, contains only '
     'letters, digits and "_", and is not a reserved word';
@@ -47,9 +70,19 @@ const _nameRules =
 /// Compiles one template [source]. [templatePath] is used in diagnostics and
 /// source markers.
 ///
+/// [accessPathByTemplatePath] maps every template path, relative to the input
+/// directory, to the Dart expression that calls it, such as `Html.ui.label`;
+/// `<x-fragment>` tags are resolved against it. Null skips resolving them,
+/// for checking syntax when template names conflict.
+///
 /// Throws a [Diagnostic] pointing at the offending line on invalid markup.
-CompiledTemplate compileTemplate(String source, String templatePath) {
+CompiledTemplate compileTemplate(
+  String source,
+  String templatePath, {
+  Map<String, String>? accessPathByTemplatePath,
+}) {
   final body = StringBuffer();
+  final renderedFragments = <RenderedFragment>[];
   final pendingText = StringBuffer();
   final openDirectives =
       <({String name, String? indexVariable, int offset, int variableCount})>[];
@@ -196,6 +229,43 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
     return attribute.value;
   }
 
+  /// The Dart value passed for the [name] prop of a `<x-fragment>`: a
+  /// string literal, or the variable in `{{ }}` as it is.
+  String fragmentArgument(String name, _Attribute attribute) {
+    if (!_isValidName(name)) {
+      fail('"$name" is not a valid prop name; $_nameRules', attribute.offset);
+    }
+    final value =
+        attribute.value ??
+        fail(
+          'prop "$name" needs a value, like $name="text" or '
+          '$name="{{ variable }}"',
+          attribute.offset,
+        );
+    if (_wholeInterpolationPattern.firstMatch(value) case final match?) {
+      final expression = match[1]!.trim();
+      final expressionOffset =
+          attribute.offset + value.indexOf(expression, '{{'.length);
+      requireValuePath(expression, expressionOffset, '"{{ }}"');
+      return expression;
+    }
+    if (value.contains('{{') || value.contains('}}')) {
+      fail(
+        'prop "$name" must be plain text or exactly one quoted {{ }}, like '
+        '$name="{{ variable }}"; build mixed text in Dart and pass it in',
+        attribute.offset,
+      );
+    }
+    if (_htmlEntityPattern.firstMatch(value) case final entity?) {
+      fail(
+        'write "${entity[0]}" in prop "$name" as the plain character; HTML '
+        'entities are not decoded and would be escaped again',
+        attribute.offset + entity.start,
+      );
+    }
+    return _dartStringLiteral(value);
+  }
+
   while (true) {
     final match = _directiveStartPattern
         .allMatches(source, position)
@@ -236,6 +306,13 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
         final tag =
             _closeTagPattern.matchAsPrefix(source, offset) ??
             fail('malformed closing tag; expected </x-for> or </x-if>', offset);
+        if (tag[1] == 'fragment') {
+          fail(
+            '<x-fragment> is a void tag and has no closing tag; remove '
+            '</x-fragment> and end the tag with />',
+            offset,
+          );
+        }
         final innermost = openDirectives.lastOrNull;
         if (innermost == null) {
           fail('</x-${tag[1]}> has no matching <x-${tag[1]}>', offset);
@@ -275,6 +352,20 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
           offset + '<x-'.length + tagName.length,
           fail,
         );
+        final isSelfClosing = tag[3]!.isNotEmpty;
+        if (tagName == 'fragment' && !isSelfClosing) {
+          fail(
+            '<x-fragment> is a void tag; end it with />, '
+            'like $_fragmentUsage',
+            offset,
+          );
+        }
+        if (tagName != 'fragment' && isSelfClosing) {
+          fail(
+            '<x-$tagName> cannot end with />; close it with </x-$tagName>',
+            offset,
+          );
+        }
         position = tag.end;
 
         switch (tagName) {
@@ -423,12 +514,55 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
               variableCount: 0,
             ));
 
+          case 'fragment':
+            final fragmentPath = requiredAttribute(
+              attributes,
+              '_',
+              directive: 'fragment',
+              usage: _fragmentUsage,
+              tagOffset: offset,
+            );
+            if (!fragmentPath.value.startsWith('/') ||
+                !fragmentPath.value.endsWith('.html')) {
+              fail(
+                '"_" must be the path of a template from the input '
+                'directory, starting with / and ending with .html, like '
+                '"/ui/label.html"; got "${fragmentPath.value}"',
+                fragmentPath.offset,
+              );
+            }
+            final renderedTemplatePath = fragmentPath.value.substring(1);
+            final accessPath = accessPathByTemplatePath == null
+                ? ''
+                : accessPathByTemplatePath[renderedTemplatePath] ??
+                      fail(
+                        'there is no template ${fragmentPath.value} in the '
+                        'input directory',
+                        fragmentPath.offset,
+                      );
+            final arguments = [
+              for (final MapEntry(key: name, value: attribute)
+                  in attributes.entries)
+                if (name != '_')
+                  '  $name: ${fragmentArgument(name, attribute)}, '
+                      '${sourceMarker(attribute.offset)}',
+            ];
+            flushText();
+            emit('_\$write(\$out, $accessPath(', sourceOffset: offset);
+            arguments.forEach(emit);
+            emit('));', sourceOffset: offset);
+            final location = locate(offset);
+            renderedFragments.add((
+              templatePath: renderedTemplatePath,
+              line: location.line,
+              column: location.column,
+              lineText: location.lineText,
+            ));
+
           default:
             fail(
               '<x-$tagName> is not a directive; supported directives are '
-              '<x-props>, <x-for> and <x-if>. Templates cannot include other '
-              'templates: accept a Fragment parameter and pass the fragment '
-              'from Dart instead',
+              '<x-props>, <x-for>, <x-if> and <x-fragment>',
               offset,
             );
         }
@@ -442,7 +576,11 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
     );
   }
   flushText();
-  return (parameters: parameters, body: body.toString());
+  return (
+    parameters: parameters,
+    body: body.toString(),
+    renderedFragments: renderedFragments,
+  );
 }
 
 bool _isValidName(String name) =>
@@ -461,6 +599,10 @@ Map<String, _Attribute> _parseAttributes(
     final nameOffset = sourceOffset + match.start;
     if (attributes.containsKey(name)) {
       fail('attribute "$name" is declared twice', nameOffset);
+    }
+    // Unquoted, the spaces in {{ name }} would split it into three attributes.
+    if (match[4]?.startsWith('{{') ?? false) {
+      fail('quote {{ }} values, like $name="{{ $name }}"', nameOffset);
     }
     final rawValue = match[2] ?? match[3] ?? match[4];
     attributes[name] = rawValue == null

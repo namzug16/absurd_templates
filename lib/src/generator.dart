@@ -80,7 +80,8 @@ final class _Namespace {
 /// [templateDirectory], such as `pages/admin/dashboard.html`.
 /// [templateDirectory] only prefixes paths in diagnostics and source markers.
 ///
-/// Throws a [Diagnostic] on invalid templates or naming conflicts.
+/// Throws a [Diagnostic] on invalid templates, naming conflicts or templates
+/// that render each other in a cycle.
 String generateDartLibrary({
   required Map<String, String> templateSourceByPath,
   required String className,
@@ -91,18 +92,25 @@ String generateDartLibrary({
     className,
     templateDirectory,
   );
+  final accessPathByTemplatePath = _accessPathByTemplatePath(root);
+  final renderedFragmentsByTemplatePath = <String, List<RenderedFragment>>{};
   void compileNamespace(_Namespace namespace) {
     for (final MapEntry(key: methodName, value: templatePath)
         in namespace.templatePathByMethodName.entries) {
-      namespace.compiledTemplateByMethodName[methodName] = compileTemplate(
+      final compiled = compileTemplate(
         templateSourceByPath[templatePath]!,
         displayTemplatePath(templateDirectory, templatePath),
+        accessPathByTemplatePath: accessPathByTemplatePath,
       );
+      namespace.compiledTemplateByMethodName[methodName] = compiled;
+      renderedFragmentsByTemplatePath[templatePath] =
+          compiled.renderedFragments;
     }
     namespace.namespaceByGetterName.values.forEach(compileNamespace);
   }
 
   compileNamespace(root);
+  _rejectFragmentCycles(renderedFragmentsByTemplatePath, templateDirectory);
 
   final output = StringBuffer()
     ..writeln(generatedFileHeader)
@@ -114,13 +122,71 @@ String generateDartLibrary({
   return output.toString();
 }
 
-/// Throws a [Diagnostic] when [templatePaths] cannot all become distinct
-/// Dart members, without compiling any template.
-void checkTemplateNames({
+/// Maps each of [templatePaths] to the Dart expression that calls it, such
+/// as `Html.ui.label`, without compiling any template.
+///
+/// Throws a [Diagnostic] when they cannot all become distinct Dart members.
+Map<String, String> templateAccessPaths({
   required Iterable<String> templatePaths,
   required String className,
   String templateDirectory = '',
-}) => _buildNamespaceTree(templatePaths, className, templateDirectory);
+}) => _accessPathByTemplatePath(
+  _buildNamespaceTree(templatePaths, className, templateDirectory),
+);
+
+Map<String, String> _accessPathByTemplatePath(_Namespace root) {
+  final accessPathByTemplatePath = <String, String>{};
+  void collect(_Namespace namespace) {
+    for (final MapEntry(key: methodName, value: templatePath)
+        in namespace.templatePathByMethodName.entries) {
+      accessPathByTemplatePath[templatePath] =
+          '${namespace.accessPath}.$methodName';
+    }
+    namespace.namespaceByGetterName.values.forEach(collect);
+  }
+
+  collect(root);
+  return accessPathByTemplatePath;
+}
+
+/// Throws a [Diagnostic] at the `<x-fragment>` that closes the first cycle
+/// found, since rendering any template in it would never end.
+void _rejectFragmentCycles(
+  Map<String, List<RenderedFragment>> renderedFragmentsByTemplatePath,
+  String templateDirectory,
+) {
+  final finishedTemplatePaths = <String>{};
+  final templatePathsBeingVisited = <String>[];
+  void visit(String templatePath) {
+    if (finishedTemplatePaths.contains(templatePath)) return;
+    templatePathsBeingVisited.add(templatePath);
+    for (final rendered
+        in renderedFragmentsByTemplatePath[templatePath] ?? const []) {
+      final cycleStart = templatePathsBeingVisited.indexOf(
+        rendered.templatePath,
+      );
+      if (cycleStart != -1) {
+        final cycle = [
+          ...templatePathsBeingVisited.sublist(cycleStart),
+          rendered.templatePath,
+        ].map((path) => '/$path').join(' -> ');
+        throw Diagnostic(
+          'templates cannot render themselves, directly or through other '
+          'templates; this <x-fragment> closes the cycle $cycle',
+          path: displayTemplatePath(templateDirectory, templatePath),
+          line: rendered.line,
+          column: rendered.column,
+          lineText: rendered.lineText,
+        );
+      }
+      visit(rendered.templatePath);
+    }
+    templatePathsBeingVisited.removeLast();
+    finishedTemplatePaths.add(templatePath);
+  }
+
+  (renderedFragmentsByTemplatePath.keys.toList()..sort()).forEach(visit);
+}
 
 /// The path of a template as shown to users, such as
 /// `fragments/pages/user.html`.
