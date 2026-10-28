@@ -75,6 +75,7 @@ const _forUsage =
     '<x-for in="items" as="item"> or '
     '<x-for in="items" as="item" indexed="1" index-as="position">';
 const _ifUsage = '<x-if case="condition">';
+const _ifNotUsage = '<x-if-not case="condition">';
 const _fragmentUsage = '<x-fragment _="/ui/label.html" text="Users" />';
 const _conditionalAttributeUsage =
     '?isDisabled:disabled, ?isActive:class="active" or ?!isActive:class="idle"';
@@ -460,7 +461,11 @@ CompiledTemplate compileTemplate(
       case '</x-':
         final tag =
             _closeTagPattern.matchAsPrefix(source, offset) ??
-            fail('malformed closing tag; expected </x-for> or </x-if>', offset);
+            fail(
+              'malformed closing tag; expected </x-for>, </x-if> or '
+              '</x-if-not>',
+              offset,
+            );
         if (tag[1] == 'fragment') {
           fail(
             '<x-fragment> is a void tag and has no closing tag; remove '
@@ -648,22 +653,26 @@ CompiledTemplate compileTemplate(
               variableCount: loopVariables.length,
             ));
 
-          case 'if':
+          case 'if' || 'if-not':
             position = positionAfterDirectiveTag(offset, tag.end);
             flushText();
-            rejectUnknownAttributes(attributes, 'if', const ['case']);
+            rejectUnknownAttributes(attributes, tagName, const ['case']);
             final condition = requiredAttribute(
               attributes,
               'case',
-              directive: 'if',
-              usage: _ifUsage,
+              directive: tagName,
+              usage: tagName == 'if' ? _ifUsage : _ifNotUsage,
               tagOffset: offset,
             );
             requireValuePath(condition.value, condition.offset, '"case"');
-            emit('if (${condition.value}) {', sourceOffset: condition.offset);
+            final negation = tagName == 'if' ? '' : '!';
+            emit(
+              'if ($negation${condition.value}) {',
+              sourceOffset: condition.offset,
+            );
             indentLevel++;
             openDirectives.add((
-              name: 'if',
+              name: tagName,
               indexVariable: null,
               offset: offset,
               variableCount: 0,
@@ -717,7 +726,7 @@ CompiledTemplate compileTemplate(
           default:
             fail(
               '<x-$tagName> is not a directive; supported directives are '
-              '<x-props>, <x-for>, <x-if> and <x-fragment>',
+              '<x-props>, <x-for>, <x-if>, <x-if-not> and <x-fragment>',
               offset,
             );
         }

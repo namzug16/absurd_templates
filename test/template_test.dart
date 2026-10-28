@@ -145,6 +145,19 @@ $out.write('>');
     );
   });
 
+  test('<x-if-not> renders its children when the condition is false', () {
+    final compiled = compileTemplate(
+      '<x-props user="({bool active})"></x-props>'
+          '<x-if-not case="user.active">off</x-if-not>',
+      'a.html',
+    );
+    expect(compiled.body, r'''
+if (!user.active) { // a.html:1:59
+  $out.write('off');
+}
+''');
+  });
+
   test('escapes Dart string syntax in literal HTML', () {
     final compiled = compileTemplate(r"<p>it's $5 \o/</p>", 'a.html');
     expect(compiled.parameters, '');
@@ -225,6 +238,12 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         20,
       ),
       '<x-if></x-if>': ('<x-if> needs a non-empty "case" attribute', 1, 1),
+      '<x-if-not></x-if-not>': ('<x-if-not> needs a non-empty "case"', 1, 1),
+      '<x-props a="bool"></x-props><x-if-not case="a"></x-if>': (
+        '</x-if> found while <x-if-not> from line 1 is still open',
+        1,
+        48,
+      ),
       '<x-props a="bool"></x-props>\n<x-if case="a">': (
         '<x-if> is never closed; add </x-if>',
         2,
@@ -255,7 +274,8 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
           ('"index-as" and "as" must name different variables', 1, 79),
       '</x-if>': ('</x-if> has no matching <x-if>', 1, 1),
       '<x-include></x-include>': (
-        'supported directives are <x-props>, <x-for>, <x-if> and <x-fragment>',
+        'supported directives are <x-props>, <x-for>, <x-if>, <x-if-not> '
+            'and <x-fragment>',
         1,
         1,
       ),

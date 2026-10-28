@@ -104,7 +104,9 @@ the generated file also lead back to the template.
 - Escaping makes values safe as HTML text and inside quoted attributes, not
   as URLs: `href="{{ url }}"` with `javascript:alert(1)` still runs code.
   Check URLs used in `href`, `src` or `action` in Dart before passing them in.
-- `<x-for in as [indexed index-as]>` and `<x-if case>` render only their children.
+- `<x-for in as [indexed index-as]>`, `<x-if case>` and `<x-if-not case>`
+  render only their children; `<x-if-not>` renders them when `case` is
+  `false`, so it is the `else` of an `<x-if>` on the same value.
   A directive tag alone on its line is removed together with that line.
 - Directives inside `<!-- -->` are left alone.
 
