@@ -48,7 +48,10 @@ Future<List<Diagnostic>> checkTemplates({
       renderedTemplatePathsByCompilablePath[templatePath] =
           renderedTemplatePaths;
       for (final renderedTemplatePath in renderedTemplatePaths) {
-        if (!templatePathsToCompile.contains(renderedTemplatePath)) {
+        // Missing ones are reported once naming conflicts are fixed, since
+        // only then are <x-fragment> paths resolved.
+        if (templateSourceByPath.containsKey(renderedTemplatePath) &&
+            !templatePathsToCompile.contains(renderedTemplatePath)) {
           templatePathsToCompile.add(renderedTemplatePath);
         }
       }

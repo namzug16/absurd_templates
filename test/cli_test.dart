@@ -362,6 +362,17 @@ error: The argument type 'Fragment' can't be assigned to the parameter type 'Str
       );
     });
 
+    test('reports naming conflicts next to a missing template', () async {
+      writeProjectFile('fragments/a.html', '<x-fragment _="/missing.html" />');
+      writeProjectFile('fragments/user-page.html', '');
+      writeProjectFile('fragments/user_page.html', '');
+
+      final result = await _runAbs(projectDirectory, ['check']);
+
+      expect(result.exitCode, 1);
+      expect(result.stdout, contains('would both become Fragments.userPage'));
+    });
+
     test('checks only the given files, once each', () async {
       writeProjectFile('fragments/broken.html', '{{ missing }}');
 
