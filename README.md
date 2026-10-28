@@ -7,10 +7,13 @@ own `Fragment` type. No runtime package needed.
 ## Install
 
 ```sh
+make install               # native binary at ~/.local/bin/abs, fastest startup
+make install PREFIX=/usr/local  # or anywhere else
+# or, without make:
 dart pub global activate --source path .
-# or, fastest startup:
-dart compile exe bin/abs.dart -o abs
 ```
+
+`make uninstall` removes it again; `make` lists the other commands.
 
 ## Vendor instead of installing
 
