@@ -34,6 +34,8 @@ final _rawTextOpeningTagNamePattern = RegExp(
   caseSensitive: false,
 );
 final _conditionalAttributeNamePattern = RegExp(r'^\?(!?)([^:!]+):(.+)$');
+// ...attributes or ?condition:...attributes.
+final _spreadAttributeNamePattern = RegExp(r'^(?:\?!?[^:!]+:)?\.\.\.');
 final _attributePattern = RegExp(
   r'''([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?''',
 );
@@ -79,6 +81,8 @@ const _ifNotUsage = '<x-if-not case="condition">';
 const _fragmentUsage = '<x-fragment _="/ui/label.html" text="Users" />';
 const _conditionalAttributeUsage =
     '?isDisabled:disabled, ?isActive:class="active" or ?!isActive:class="idle"';
+const _spreadAttributeUsage =
+    '...extraAttributes or ?isSelected:...selectedAttributes';
 const _nameRules =
     'use a Dart identifier that starts with a letter, contains only '
     'letters, digits and "_", and is not a reserved word';
@@ -110,6 +114,8 @@ CompiledTemplate compileTemplate(
   var indentLevel = 0;
   // Where the content of the current <script> or <style> ends.
   var rawTextEnd = 0;
+  // Numbers each tag's set of attribute names, so their variables differ.
+  var spreadTagCount = 0;
 
   ({int line, int column, String lineText}) locate(int offset) {
     final lineIndex = lineStartOffsets.lastIndexWhere((s) => s <= offset);
@@ -345,7 +351,8 @@ CompiledTemplate compileTemplate(
 
   /// Writes the HTML tag from [tagStart] to [tagEnd], wrapping each
   /// `?condition:attribute` in an `if`. The whitespace before it goes inside
-  /// the `if`, so a false condition leaves no gap.
+  /// the `if`, so a false condition leaves no gap. Each `...attributes` map
+  /// is written by `_$writeAttributes`, which checks its names at run time.
   void writeHtmlTag(int tagStart, int tagEnd) {
     final nameEnd = _htmlTagNamePattern.matchAsPrefix(source, tagStart)!.end;
     final attributes = [
@@ -356,35 +363,73 @@ CompiledTemplate compileTemplate(
     ];
     final plainAttributeNames = {
       for (final (:match, offset: _) in attributes)
-        if (!match[1]!.startsWith('?')) match[1]!.toLowerCase(),
+        if (!match[1]!.startsWith('?') && !match[1]!.startsWith('...'))
+          match[1]!.toLowerCase(),
     };
+    String? writtenNamesVariable;
+    if (attributes.any(
+      (attribute) => _spreadAttributeNamePattern.hasMatch(attribute.match[1]!),
+    )) {
+      writtenNamesVariable = '\$attributeNames${spreadTagCount++}';
+      final tagAttributeNames = {
+        ...plainAttributeNames,
+        for (final (:match, offset: _) in attributes)
+          if (_conditionalAttributeNamePattern.firstMatch(match[1]!)
+              case final conditional? when !conditional[3]!.startsWith('...'))
+            conditional[3]!.toLowerCase(),
+      };
+      flushText();
+      emit(
+        'final $writtenNamesVariable = <String>{'
+        '${tagAttributeNames.map(_dartStringLiteral).join(', ')}};',
+      );
+    }
     var textStart = tagStart;
     for (final (:match, :offset) in attributes) {
       final rawName = match[1]!;
-      if (!rawName.startsWith('?')) continue;
-      final conditionalName =
-          _conditionalAttributeNamePattern.firstMatch(rawName) ??
+      if (!rawName.startsWith('?') && !rawName.startsWith('...')) continue;
+      var negation = '';
+      String? condition;
+      var conditionOffset = offset;
+      var attributeName = rawName;
+      if (rawName.startsWith('?')) {
+        final conditionalName =
+            _conditionalAttributeNamePattern.firstMatch(rawName) ??
+            fail(
+              '"$rawName" is not a conditional attribute; write it as '
+              '?condition:attribute, like $_conditionalAttributeUsage',
+              offset,
+            );
+        negation = conditionalName[1]!;
+        condition = conditionalName[2]!;
+        attributeName = conditionalName[3]!;
+        conditionOffset = offset + '?'.length + negation.length;
+        requireValuePath(condition, conditionOffset, '"?condition:"');
+      }
+      final attributeOffset = offset + rawName.length - attributeName.length;
+      final spreadMap = attributeName.startsWith('...')
+          ? attributeName.substring('...'.length)
+          : null;
+      final spreadMapOffset = attributeOffset + '...'.length;
+      if (spreadMap != null) {
+        if (match[0]!.length != rawName.length) {
           fail(
-            '"$rawName" is not a conditional attribute; write it as '
-            '?condition:attribute, like $_conditionalAttributeUsage',
+            '"$attributeName" takes no value; it writes every entry of the '
+            'Map<String, String> as an attribute, like $_spreadAttributeUsage',
             offset,
           );
-      final negation = conditionalName[1]!;
-      final condition = conditionalName[2]!;
-      final attributeName = conditionalName[3]!;
-      final conditionOffset = offset + '?'.length + negation.length;
-      requireValuePath(condition, conditionOffset, '"?condition:"');
-      // Conditional ones may share a name: each condition picks one value.
-      if (plainAttributeNames.contains(attributeName.toLowerCase())) {
+        }
+        requireValuePath(spreadMap, spreadMapOffset, '"...attributes"');
+      } else if (plainAttributeNames.contains(attributeName.toLowerCase())) {
+        // Conditional ones may share a name: each condition picks one value.
         fail(
           '"$attributeName" is also a plain attribute in this tag and '
           'browsers keep only the first; compute one value in Dart and pass '
           'it in',
           offset,
         );
-      }
-      // Unquoted, the spaces in {{ name }} would split the value.
-      if (match[4]?.startsWith('{{') ?? false) {
+      } else if (match[4]?.startsWith('{{') ?? false) {
+        // Unquoted, the spaces in {{ name }} would split the value.
         fail(
           'quote {{ }} values, like $rawName="{{ $attributeName }}"',
           offset,
@@ -397,17 +442,30 @@ CompiledTemplate compileTemplate(
       }
       writeTextWithInterpolations(textStart, whitespaceStart);
       flushText();
-      emit('if ($negation$condition) {', sourceOffset: conditionOffset);
-      indentLevel++;
-      pendingText.write(source.substring(whitespaceStart, offset));
-      pendingText.write(attributeName);
-      writeTextWithInterpolations(
-        offset + rawName.length,
-        offset + match.end - match.start,
-      );
-      flushText();
-      indentLevel--;
-      emit('}');
+      if (condition != null) {
+        emit('if ($negation$condition) {', sourceOffset: conditionOffset);
+        indentLevel++;
+      }
+      if (spreadMap != null) {
+        // _$writeAttributes puts a space before each entry, so an empty map
+        // leaves no gap.
+        emit(
+          '_\$writeAttributes(\$out, $spreadMap, $writtenNamesVariable);',
+          sourceOffset: spreadMapOffset,
+        );
+      } else {
+        pendingText.write(source.substring(whitespaceStart, offset));
+        pendingText.write(attributeName);
+        writeTextWithInterpolations(
+          offset + rawName.length,
+          offset + match.end - match.start,
+        );
+        flushText();
+      }
+      if (condition != null) {
+        indentLevel--;
+        emit('}');
+      }
       textStart = offset + match.end - match.start;
     }
     writeTextWithInterpolations(textStart, tagEnd);

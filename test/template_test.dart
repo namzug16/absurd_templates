@@ -125,6 +125,27 @@ $out.write('>');
 ''');
   });
 
+  test('...map writes its entries; ?condition:...map only when true', () {
+    final compiled = compileTemplate(
+      '<x-props isOn="bool" a="Map<String, String>" b="Map<String, String>">'
+          '</x-props>'
+          '<p id="x" ?isOn:class="on" ...a\n  ?!isOn:...b>',
+      'a.html',
+    );
+    expect(compiled.body, r'''
+final $attributeNames0 = <String>{'id', 'class'};
+$out.write('<p id="x"');
+if (isOn) { // a.html:1:91
+  $out.write(' class="on"');
+}
+_$writeAttributes($out, a, $attributeNames0); // a.html:1:110
+if (!isOn) { // a.html:2:5
+  _$writeAttributes($out, b, $attributeNames0); // a.html:2:13
+}
+$out.write('>');
+''');
+  });
+
   test('leaves a "<" that does not start a tag as text', () {
     final compiled = compileTemplate('<script>i<n</script>', 'a.html');
     expect(
@@ -339,6 +360,18 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         'quote {{ }} values, like ?a:title="{{ title }}"',
         1,
         43,
+      ),
+      '<x-props m="Map<String, String>"></x-props><p ...m="x">': (
+        '"...m" takes no value',
+        1,
+        47,
+      ),
+      '<p ...m>': ('"m" is not declared', 1, 7),
+      '<x-props a="bool"></x-props><p ?a:...m>': ('"m" is not declared', 1, 38),
+      '<x-props m="Map<String, String>"></x-props><p ...m.keys.first()>': (
+        '"...attributes" only accepts a variable or its fields',
+        1,
+        50,
       ),
       '<x-if case="a>': ('malformed <x-...> tag', 1, 1),
       'a\n  {{ name': ('"{{" is never closed with "}}"', 2, 3),

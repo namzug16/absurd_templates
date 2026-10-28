@@ -107,7 +107,17 @@ That is the whole language: seven constructs.
   tag; it is an error. An attribute cannot be both plain and conditional
   (`class="btn" ?isActive:class="active"`); compute one value in Dart.
 
-Values in `{{ }}`, `in`, `case`, `?condition:` and `<x-fragment>` props can only be a
+- **`...attributes`** on an HTML tag writes every entry of a
+  `Map<String, String>` (or `Map<String, String>?`, where `null` writes
+  nothing) as `name="value"`, values escaped:
+  `<div class="combobox" ...extraAttributes>`. It combines with a
+  condition: `?option.isSelected:...selectedAttributes`. Rendering throws
+  `ArgumentError` when a key is not a valid attribute name or is already in
+  the tag (written there, conditional or not, or from an earlier map), so
+  pass `class` as its own prop and write `class="base {{ extraClass }}"`.
+  Keys must come from your code, never from users: `onclick` is a valid key.
+
+Values in `{{ }}`, `in`, `case`, `?condition:`, `...attributes` and `<x-fragment>` props can only be a
 variable in scope (a prop or an enclosing loop variable) followed by fields
 or getters: `title`, `user.name`, `pair.$1`, `items.isEmpty`. Nothing else is allowed: no
 operators, method calls, `!`, `??`, string interpolation or filters. This is

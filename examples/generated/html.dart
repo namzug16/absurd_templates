@@ -137,6 +137,43 @@ void _$write(StringBuffer out, Object? value) {
   }
 }
 
+// Names an HTML parser reads as one attribute name.
+final _$attributeNamePattern = RegExp('^[^\\s"\'<>/=\\x00-\\x1F\\x7F]+\$');
+
+/// Writes each entry of [attributes] as ` name="value"`, failing on names
+/// that are not valid HTML or already in [writtenNames], the names in the
+/// tag so far, which it adds to.
+void _$writeAttributes(
+  StringBuffer out,
+  Map<String, String>? attributes,
+  Set<String> writtenNames,
+) {
+  if (attributes == null) return;
+  for (final MapEntry(key: name, :value) in attributes.entries) {
+    if (!_$attributeNamePattern.hasMatch(name)) {
+      throw ArgumentError.value(
+        name,
+        'attributes',
+        'is not a valid HTML attribute name',
+      );
+    }
+    if (!writtenNames.add(name.toLowerCase())) {
+      throw ArgumentError.value(
+        name,
+        'attributes',
+        'is already an attribute of this tag and browsers keep only the '
+            'first; compute one value in Dart and pass it in',
+      );
+    }
+    out
+      ..write(' ')
+      ..write(name)
+      ..write('="');
+    _$writeEscaped(out, value);
+    out.write('"');
+  }
+}
+
 /// Writes [text] with &, <, >, " and ' replaced by the same entities as
 /// dart:convert's HtmlEscape, which is several times slower.
 void _$writeEscaped(StringBuffer out, String text) {

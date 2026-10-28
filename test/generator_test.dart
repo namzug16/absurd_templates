@@ -19,6 +19,13 @@ const _specTemplates = {
   'pages/badges.html': '''
 <x-props counts="List<int>"></x-props>
 <x-for in="counts" as="count"><x-fragment _="/ui/badge.html" label="Tom & Jerry's" count="{{ count }}" /></x-for>''',
+  'ui/option.html': '''
+<x-props
+  extra="Map<String, String>?"
+  isSelected="bool"
+  selected="Map<String, String>"
+></x-props>
+<p class="option" ...extra ?isSelected:...selected>''',
   'pages/users.html': '''
 <x-props
   title="String"
@@ -70,6 +77,15 @@ void main() {
   print(Html.pages.admin.dashboard().toHtml());
   print(Html.pages.list(items: [Html.pages.admin.dashboard(), Html.pages.admin.dashboard()]).toHtml());
   print(Html.pages.badges(counts: [1, 2]).toHtml());
+  print(Html.ui.option(extra: {'data-value': '"<a>'}, isSelected: true, selected: {'aria-selected': 'true'}).toHtml());
+  print(Html.ui.option(isSelected: false, selected: {'aria-selected': 'true'}).toHtml());
+  for (final extra in [{'CLASS': 'a'}, {'data-a': 'a', 'aria-selected': 'b'}, {'a b': 'c'}]) {
+    try {
+      Html.ui.option(extra: extra, isSelected: true, selected: {'aria-selected': 'true'}).toHtml();
+    } on ArgumentError catch (error) {
+      print(error.message);
+    }
+  }
 }
 ''');
 
@@ -86,6 +102,11 @@ void main() {
 <b>admin</b>
 <ul><b>admin</b><b>admin</b></ul>
 <b>Tom &amp; Jerry&#39;s: 1</b><b>Tom &amp; Jerry&#39;s: 2</b>
+<p class="option" data-value="&quot;&lt;a&gt;" aria-selected="true">
+<p class="option">
+is already an attribute of this tag and browsers keep only the first; compute one value in Dart and pass it in
+is already an attribute of this tag and browsers keep only the first; compute one value in Dart and pass it in
+is not a valid HTML attribute name
 ''');
   });
 

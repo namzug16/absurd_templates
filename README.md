@@ -151,6 +151,34 @@ HTML, and an attribute that is both plain and conditional, such as
 `class="btn" ?isActive:class="active"`, is an error, because browsers keep
 only the first. Compute the combined value in Dart instead.
 
+### Extra attributes
+
+```html
+<x-props
+  extraAttributes="Map<String, String>?"
+  options="List<({String label, bool isSelected})>"
+  selectedAttributes="Map<String, String>"
+></x-props>
+
+<div class="combobox" ...extraAttributes>
+  <x-for in="options" as="option">
+    <p role="option" ?option.isSelected:...selectedAttributes>{{ option.label }}</p>
+  </x-for>
+</div>
+```
+
+`...attributes` writes every entry of a `Map<String, String>` as
+` name="value"`, in map order with values escaped; an empty or `null` map
+writes nothing. `?condition:...attributes` and `?!condition:...attributes`
+write it only when the condition is `true` or `false`.
+
+Map keys are only known when rendering, so rendering throws an
+`ArgumentError` when a key is not a valid attribute name, or is already an
+attribute of the tag: written there, conditional or not, or from an earlier
+map in it. Pass a class to merge as its own prop instead:
+`class="combobox {{ extraClass }}"`. Keys are written as they are, and
+`onclick` is a valid one, so never take them from user input.
+
 ## Generated API
 
 `fragments/pages/user-page.html` becomes `Html.pages.userPage(...)`, returning
