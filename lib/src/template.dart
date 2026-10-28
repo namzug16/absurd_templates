@@ -93,6 +93,10 @@ const _conditionalAttributeUsage =
     '?isDisabled:disabled, ?isActive:class="active" or ?!isActive:class="idle"';
 const _spreadAttributeUsage =
     '...extraAttributes or ?isSelected:...selectedAttributes';
+const _interpolationInTagUsage =
+    '{{ }} inside an HTML tag only goes in a quoted attribute value, like '
+    'title="{{ title }}"; pass extra attributes as a map, like '
+    '$_spreadAttributeUsage';
 const _nameRules =
     'use a Dart identifier that starts with a letter, contains only '
     'letters, digits and "_", and is not a reserved word';
@@ -394,9 +398,23 @@ CompiledTemplate compileTemplate(
         '<String, bool>{${plainNameEntries.join(', ')}};',
       );
     }
+    if (source.substring(tagStart, nameEnd).contains('{{')) {
+      fail(_interpolationInTagUsage, tagStart);
+    }
     var textStart = tagStart;
     for (final (:match, :offset) in attributes) {
       final rawName = match[1]!;
+      if (rawName.contains('{{')) fail(_interpolationInTagUsage, offset);
+      // Unquoted, the spaces in {{ name }} would split the value, and spaces
+      // in the value would add attributes of their own.
+      if (match[4]?.contains('{{') ?? false) {
+        final attributeName =
+            _conditionalAttributeNamePattern.firstMatch(rawName)?[3] ?? rawName;
+        fail(
+          'quote {{ }} values, like $rawName="{{ $attributeName }}"',
+          offset,
+        );
+      }
       if (!rawName.startsWith('?') && !rawName.startsWith('...')) continue;
       var negation = '';
       String? condition;
@@ -436,12 +454,6 @@ CompiledTemplate compileTemplate(
           '"$attributeName" is also a plain attribute in this tag and '
           'browsers keep only the first; compute one value in Dart and pass '
           'it in',
-          offset,
-        );
-      } else if (match[4]?.startsWith('{{') ?? false) {
-        // Unquoted, the spaces in {{ name }} would split the value.
-        fail(
-          'quote {{ }} values, like $rawName="{{ $attributeName }}"',
           offset,
         );
       }

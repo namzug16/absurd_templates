@@ -458,6 +458,26 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         1,
         43,
       ),
+      '<x-props t="String"></x-props><p class={{ t }}>': (
+        'quote {{ }} values, like class="{{ class }}"',
+        1,
+        34,
+      ),
+      '<x-props t="String"></x-props><p class=a{{t}}>': (
+        'quote {{ }} values, like class="{{ class }}"',
+        1,
+        34,
+      ),
+      '<x-props t="String"></x-props><p {{ t }}>': (
+        '{{ }} inside an HTML tag only goes in a quoted attribute value',
+        1,
+        34,
+      ),
+      '<x-props t="String"></x-props><p{{t}}>': (
+        '{{ }} inside an HTML tag only goes in a quoted attribute value',
+        1,
+        31,
+      ),
       '<x-props m="Map<String, String>"></x-props><p ...m="x">': (
         '"...m" takes no value',
         1,
