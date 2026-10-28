@@ -1,7 +1,7 @@
 # Absurd Templates
 
 HTML-first templates for Dart. `abs` compiles a directory of `.html` files
-into **one self-contained Dart file** with typed component functions and its
+into **one self-contained Dart file** with typed fragment functions and its
 own `Fragment` type. No runtime package needed.
 
 ## Install
@@ -37,9 +37,9 @@ version.
 explain every option:
 
 ```yaml
-input: components             # required, scanned recursively for .html
+input: fragments              # required, scanned recursively for .html
 output: lib/generated/html.dart # required
-class: Html                   # optional, defaults to Components
+class: Html                   # optional, defaults to Fragments
 ```
 
 abs.yaml holds only these top-level keys, with plain or quoted text values
@@ -51,7 +51,7 @@ Run `abs` to generate the output file.
 
 ```sh
 abs check                              # every template
-abs check components/pages/users.html  # only these files
+abs check fragments/pages/users.html  # only these files
 ```
 
 `abs check` writes nothing. It reports syntax errors, naming conflicts and
@@ -60,7 +60,7 @@ mapped back to the template. It exits with 1 when there are errors:
 
 ```text
 error: The getter 'nmae' isn't defined for the type '({bool active, String name})'.
-  --> components/pages/users.html:12:16
+  --> fragments/pages/users.html:12:16
    |
 12 |         <li>{{ user.nmae }}</li>
    |                ^
@@ -69,7 +69,7 @@ abs check: 1 error and 0 warnings in 1 template
 ```
 
 Every statement in the generated file that comes from template code ends in
-a `// components/pages/users.html:12:16` comment, so errors reported against
+a `// fragments/pages/users.html:12:16` comment, so errors reported against
 the generated file also lead back to the template.
 
 ## Templates
@@ -110,7 +110,7 @@ the generated file also lead back to the template.
 
 ## Generated API
 
-`components/pages/user-page.html` becomes `Html.pages.userPage(...)`, returning
+`fragments/pages/user-page.html` becomes `Html.pages.userPage(...)`, returning
 a `Fragment`. Call `.toHtml()` to render. Name collisions (after camelCase
 conversion) and file/directory clashes are errors.
 
@@ -134,7 +134,7 @@ lib/generated/html.dart linguist-generated=true
 
 ## Example
 
-[`examples/`](examples) has components, their generated
+[`examples/`](examples) has fragments, their generated
 [`html.dart`](examples/generated/html.dart) and a [`main.dart`](examples/main.dart)
 that renders them:
 

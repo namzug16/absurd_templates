@@ -83,12 +83,12 @@ $out.write('</ul>');
       () => compileTemplate(
         '<x-props a="bool"></x-props>\n'
             '<ul>\n  <x-if case="a">\n    <li>\n  </x-for>\n',
-        'components/list.html',
+        'fragments/list.html',
       ),
       throwsA(
         isA<Diagnostic>().having((d) => d.format(), 'format()', '''
 error: </x-for> found while <x-if> from line 3 is still open; close it with </x-if> first
-  --> components/list.html:5:3
+  --> fragments/list.html:5:3
   |
 5 |   </x-for>
   |   ^'''),

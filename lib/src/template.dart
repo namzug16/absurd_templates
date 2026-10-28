@@ -427,7 +427,7 @@ CompiledTemplate compileTemplate(String source, String templatePath) {
             fail(
               '<x-$tagName> is not a directive; supported directives are '
               '<x-props>, <x-for> and <x-if>. Templates cannot include other '
-              'templates: accept a Fragment parameter and pass the component '
+              'templates: accept a Fragment parameter and pass the fragment '
               'from Dart instead',
               offset,
             );

@@ -6,7 +6,7 @@ final _nonTabPattern = RegExp(r'[^\t]');
 ///
 /// ```text
 /// error: <message>
-///   --> components/pages/users.html:12:27
+///   --> fragments/pages/users.html:12:27
 ///    |
 /// 12 |         <li>{{ user.nmae }}</li>
 ///    |                ^

@@ -4,7 +4,7 @@ Renders the same three pages with Absurd Templates (`abs`),
 [Jinja](https://pub.dev/packages/jinja) and
 [Mustache](https://pub.dev/packages/mustache_template), all in Dart:
 
-- `card`: one small component.
+- `card`: one small fragment.
 - `table`: 1000 rows with a loop, an index and a condition.
 - `page`: a layout composing 100 cards (Jinja `include`, Mustache partials,
   `List<Fragment>` in abs).
@@ -37,7 +37,7 @@ Apple M1, one run:
 Absurd Templates vs Jinja vs Mustache
 Dart 3.13.4 (AOT), macos, 2 s per engine after a 500 ms warm-up
 
-card: one small component
+card: one small fragment
   engine     time per render   renders/s  vs abs
   abs                0.99 µs   1,005,723  baseline      ██████
   jinja              5.30 µs     188,775  5.3x slower   ████████████████████████████████
@@ -49,7 +49,7 @@ table: 1000 rows with a loop, an index and a condition
   jinja              3.88 ms         258  6.2x slower   ████████████████████████████████
   mustache           1.85 ms         541  3.0x slower   ███████████████
 
-page: a layout composing 100 card components
+page: a layout composing 100 card fragments
   engine     time per render   renders/s  vs abs
   abs                97.0 µs      10,313  baseline      █
   jinja              8.22 ms         122  84.8x slower  ████████████████████████████████

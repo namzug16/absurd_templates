@@ -73,7 +73,7 @@ List<Scenario> loadScenarios({String templateDirectory = 'templates'}) {
   return [
     (
       name: 'card',
-      description: 'one small component',
+      description: 'one small fragment',
       renderByEngine: {
         'abs': () => Bench.card(user: users.first).toHtml(),
         'jinja': () => jinjaCard.render({'user': userMaps.first}),
@@ -91,7 +91,7 @@ List<Scenario> loadScenarios({String templateDirectory = 'templates'}) {
     ),
     (
       name: 'page',
-      description: 'a layout composing 100 card components',
+      description: 'a layout composing 100 card fragments',
       renderByEngine: {
         'abs': () => Bench.page(
           title: 'Team <dev & ops>',

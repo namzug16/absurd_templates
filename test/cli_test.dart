@@ -36,14 +36,14 @@ void main() {
 
   test('generates the configured output file', () async {
     writeProjectFile('abs.yaml', '''
-input: components
+input: fragments
 output: lib/generated/html.dart
 class: Html
 ''');
-    writeProjectFile('components/layout/primary.html', '''
+    writeProjectFile('fragments/layout/primary.html', '''
 <x-props title="String" content="Fragment"></x-props>
 <title>{{ title }}</title><main>{{ content }}</main>''');
-    writeProjectFile('components/notes.txt', 'ignored');
+    writeProjectFile('fragments/notes.txt', 'ignored');
 
     final result = await _runAbs(projectDirectory);
 
@@ -58,8 +58,8 @@ class: Html
   });
 
   test('leaves an unchanged output file alone', () async {
-    writeProjectFile('abs.yaml', 'input: components\noutput: out.dart\n');
-    writeProjectFile('components/header.html', '<header></header>');
+    writeProjectFile('abs.yaml', 'input: fragments\noutput: out.dart\n');
+    writeProjectFile('fragments/header.html', '<header></header>');
     await _runAbs(projectDirectory);
     final outputFile = File('${projectDirectory.path}/out.dart');
     final firstModified = outputFile.lastModifiedSync();
@@ -72,8 +72,8 @@ class: Html
   });
 
   test('refuses to overwrite a file it did not generate', () async {
-    writeProjectFile('abs.yaml', 'input: components\noutput: main.dart\n');
-    writeProjectFile('components/header.html', '<header></header>');
+    writeProjectFile('abs.yaml', 'input: fragments\noutput: main.dart\n');
+    writeProjectFile('fragments/header.html', '<header></header>');
     writeProjectFile('main.dart', 'void main() {}\n');
 
     final result = await _runAbs(projectDirectory);
@@ -96,17 +96,17 @@ class: Html
     expect(initResult.stdout, startsWith('abs: created abs.yaml'));
     final configFile = File('${projectDirectory.path}/abs.yaml');
     final config = configFile.readAsStringSync();
-    expect(config, contains('input: components\n'));
+    expect(config, contains('input: fragments\n'));
     expect(config, contains('# class: Html\n'));
 
-    writeProjectFile('components/header.html', '<header></header>');
+    writeProjectFile('fragments/header.html', '<header></header>');
     final generateResult = await _runAbs(projectDirectory);
     expect(generateResult.exitCode, 0);
     expect(
       File(
         '${projectDirectory.path}/lib/generated/html.dart',
       ).readAsStringSync(),
-      contains('abstract final class Components {'),
+      contains('abstract final class Fragments {'),
     );
 
     configFile.writeAsStringSync('input: mine\n');
@@ -116,26 +116,26 @@ class: Html
     expect(configFile.readAsStringSync(), 'input: mine\n');
   });
 
-  test('defaults the class name to Components', () async {
-    writeProjectFile('abs.yaml', 'input: components\noutput: out.dart\n');
-    writeProjectFile('components/header.html', '<header></header>');
+  test('defaults the class name to Fragments', () async {
+    writeProjectFile('abs.yaml', 'input: fragments\noutput: out.dart\n');
+    writeProjectFile('fragments/header.html', '<header></header>');
 
     final result = await _runAbs(projectDirectory);
 
     expect(result.exitCode, 0);
     expect(
       File('${projectDirectory.path}/out.dart').readAsStringSync(),
-      contains('abstract final class Components {'),
+      contains('abstract final class Fragments {'),
     );
   });
 
   test('accepts an input directory written as ./dir/', () async {
-    writeProjectFile('abs.yaml', 'input: ./components/\noutput: out.dart\n');
-    writeProjectFile('components/pages/home.html', '<p>home</p>');
+    writeProjectFile('abs.yaml', 'input: ./fragments/\noutput: out.dart\n');
+    writeProjectFile('fragments/pages/home.html', '<p>home</p>');
 
     final result = await _runAbs(projectDirectory, [
       'check',
-      'components/pages/home.html',
+      'fragments/pages/home.html',
     ]);
 
     expect(result.stdout, 'abs check: 1 template OK\n');
@@ -145,11 +145,11 @@ class: Html
   test('reads quoted values and comments in abs.yaml', () async {
     writeProjectFile('abs.yaml', """
 # settings
-input: "components"   # quoted
+input: "fragments"   # quoted
 output: gen/a#b.dart  # the first # has no space before it
 class: 'Html'
 """);
-    writeProjectFile('components/header.html', '<header></header>');
+    writeProjectFile('fragments/header.html', '<header></header>');
 
     final result = await _runAbs(projectDirectory);
 
@@ -162,18 +162,18 @@ class: 'Html'
 
   group('rejects abs.yaml with', () {
     final messageByConfig = {
-      'input: components\n  nested: x\noutput: o.dart\n': 'abs.yaml:2:1',
-      'input: [components]\noutput: o.dart\n': 'expected a "key: value" line',
-      'input: components\ninput: other\noutput: o.dart\n':
+      'input: fragments\n  nested: x\noutput: o.dart\n': 'abs.yaml:2:1',
+      'input: [fragments]\noutput: o.dart\n': 'expected a "key: value" line',
+      'input: fragments\ninput: other\noutput: o.dart\n':
           '"input" is set twice',
-      'input: components\noutput: o.dart\nclas: Html\n': 'unknown key "clas"',
-      'input:components\noutput: o.dart\n': 'expected a "key: value" line',
+      'input: fragments\noutput: o.dart\nclas: Html\n': 'unknown key "clas"',
+      'input:fragments\noutput: o.dart\n': 'expected a "key: value" line',
     };
     for (final MapEntry(key: config, value: message)
         in messageByConfig.entries) {
       test(config.split('\n').first, () async {
         writeProjectFile('abs.yaml', config);
-        writeProjectFile('components/header.html', '<header></header>');
+        writeProjectFile('fragments/header.html', '<header></header>');
 
         final result = await _runAbs(projectDirectory);
 
@@ -184,8 +184,8 @@ class: 'Html'
   });
 
   test('rejects an empty class instead of using the default', () async {
-    writeProjectFile('abs.yaml', 'input: components\noutput: o.dart\nclass:\n');
-    writeProjectFile('components/header.html', '<header></header>');
+    writeProjectFile('abs.yaml', 'input: fragments\noutput: o.dart\nclass:\n');
+    writeProjectFile('fragments/header.html', '<header></header>');
 
     final result = await _runAbs(projectDirectory);
 
@@ -195,7 +195,7 @@ class: 'Html'
   });
 
   test('reports errors and exits with 1', () async {
-    writeProjectFile('abs.yaml', 'input: components\n');
+    writeProjectFile('abs.yaml', 'input: fragments\n');
 
     final result = await _runAbs(projectDirectory);
 
@@ -204,7 +204,7 @@ class: 'Html'
 error: "output" is required (see "abs help")
   --> abs.yaml:1:1
   |
-1 | input: components
+1 | input: fragments
   | ^
 ''');
   });
@@ -225,15 +225,15 @@ error: "output" is required (see "abs help")
 
   group('abs check', () {
     setUp(() {
-      writeProjectFile('abs.yaml', 'input: components\noutput: out.dart\n');
+      writeProjectFile('abs.yaml', 'input: fragments\noutput: out.dart\n');
       writeProjectFile(
-        'components/ok.html',
+        'fragments/ok.html',
         '<x-props name="String"></x-props>{{ name }}',
       );
     });
 
     test('maps Dart errors back to the template line', () async {
-      writeProjectFile('components/broken.html', '''
+      writeProjectFile('fragments/broken.html', '''
 <x-props
   name="Strng"
   users="List<({String name})>"
@@ -250,7 +250,7 @@ error: "output" is required (see "abs help")
         result.stdout,
         contains('''
 error: Undefined class 'Strng'.
-  --> components/broken.html:2:9
+  --> fragments/broken.html:2:9
   |
 2 |   name="Strng"
   |         ^
@@ -259,7 +259,7 @@ error: Undefined class 'Strng'.
       expect(
         result.stdout,
         contains('''
-  --> components/broken.html:6:10
+  --> fragments/broken.html:6:10
   |
 6 |   <li>{{ user.nmae }}</li>
   |          ^
@@ -273,12 +273,12 @@ error: Undefined class 'Strng'.
     });
 
     test('checks only the given files, once each', () async {
-      writeProjectFile('components/broken.html', '{{ missing }}');
+      writeProjectFile('fragments/broken.html', '{{ missing }}');
 
       final result = await _runAbs(projectDirectory, [
         'check',
-        'components/ok.html',
-        './components/ok.html',
+        'fragments/ok.html',
+        './fragments/ok.html',
       ]);
 
       expect(result.stdout, 'abs check: 1 template OK\n');
@@ -286,11 +286,11 @@ error: Undefined class 'Strng'.
     });
 
     test('passes a template that writes no values', () async {
-      writeProjectFile('components/static.html', '<p>static</p>');
+      writeProjectFile('fragments/static.html', '<p>static</p>');
 
       final result = await _runAbs(projectDirectory, [
         'check',
-        'components/static.html',
+        'fragments/static.html',
       ]);
 
       expect(result.stdout, 'abs check: 1 template OK\n');
@@ -332,7 +332,7 @@ error: Undefined class 'Strng'.
       expect(result.exitCode, 1);
       expect(
         result.stderr,
-        contains('"other.html" is not inside the input directory "components"'),
+        contains('"other.html" is not inside the input directory "fragments"'),
       );
     });
   });
@@ -356,9 +356,9 @@ error: Undefined class 'Strng'.
     late File vendoredFile;
 
     setUp(() {
-      writeProjectFile('abs.yaml', 'input: components\noutput: out.dart\n');
+      writeProjectFile('abs.yaml', 'input: fragments\noutput: out.dart\n');
       writeProjectFile(
-        'components/header.html',
+        'fragments/header.html',
         '<x-props title="String"></x-props><h1>{{ title }}</h1>',
       );
       vendoredFile = File('${projectDirectory.path}/tool/abs.dart');

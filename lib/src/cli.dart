@@ -35,9 +35,9 @@ ${canVendor ? _vendorUsage : ''}  abs version                Print the version o
   abs help                   Show this message.
 
 abs.yaml, in the directory where abs runs:
-  input: components                # directory scanned for .html templates
+  input: fragments                 # directory scanned for .html templates
   output: lib/generated/html.dart  # file to generate
-  class: Html                      # optional, defaults to Components
+  class: Html                      # optional, defaults to Fragments
 ''';
 
 const _initialConfig = '''
@@ -50,16 +50,16 @@ const _initialConfig = '''
 
 # Required. Directory scanned recursively for .html templates. Each file
 # becomes a method and each subdirectory a namespace, in camelCase:
-#   components/header.html          -> Components.header()
-#   components/pages/user-page.html -> Components.pages.userPage(...)
-input: components
+#   fragments/header.html           -> Fragments.header()
+#   fragments/pages/user-page.html  -> Fragments.pages.userPage(...)
+input: fragments
 
 # Required. The one self-contained Dart file to generate, including the
 # Fragment type, so no runtime package is needed. abs only overwrites files
 # it generated itself.
 output: lib/generated/html.dart
 
-# Optional. Name of the generated entry class. Defaults to Components.
+# Optional. Name of the generated entry class. Defaults to Fragments.
 # class: Html
 ''';
 
@@ -125,7 +125,7 @@ void _init() {
   }
   configFile.writeAsStringSync(_initialConfig);
   stdout.writeln(
-    'abs: created $_configFileName; put your .html templates in components/ '
+    'abs: created $_configFileName; put your .html templates in fragments/ '
     'and run abs',
   );
 }
@@ -303,7 +303,7 @@ _Project _loadProject() {
 
   final inputDirectory = _normalizeDirectory(stringValue('input'));
   final outputFile = stringValue('output');
-  final className = stringValue('class', defaultValue: 'Components');
+  final className = stringValue('class', defaultValue: 'Fragments');
   if (!Directory(inputDirectory).existsSync()) {
     throw configError(
       'input directory "$inputDirectory" does not exist',
@@ -329,7 +329,7 @@ String _toTemplatePath(String path) =>
     path.split(Platform.pathSeparator).join('/');
 
 /// [directory] without "." and ".." segments or a trailing separator, such
-/// as "components" for "./components/".
+/// as "fragments" for "./fragments/".
 String _normalizeDirectory(String directory) {
   final normalized = Uri.directory(directory).normalizePath().toFilePath();
   return normalized.length > 1 && normalized.endsWith(Platform.pathSeparator)

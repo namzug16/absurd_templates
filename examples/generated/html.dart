@@ -16,14 +16,14 @@ final class _Html$layout {
   const _Html$layout();
 
   Fragment primary({
-    required String title, // components/layout/primary.html:2:10
-    required Fragment content, // components/layout/primary.html:3:12
+    required String title, // fragments/layout/primary.html:2:10
+    required Fragment content, // fragments/layout/primary.html:3:12
   }) =>
       Fragment._(($out) {
     $out.write('<!DOCTYPE html>\n<html lang="en">\n  <head>\n    <title>');
-    _$write($out, title); // components/layout/primary.html:9:15
+    _$write($out, title); // fragments/layout/primary.html:9:15
     $out.write('</title>\n  </head>\n  <body>\n    <main>');
-    _$write($out, content); // components/layout/primary.html:12:14
+    _$write($out, content); // fragments/layout/primary.html:12:14
     $out.write('</main>\n  </body>\n</html>\n');
   });
 }
@@ -32,46 +32,46 @@ final class _Html$pages {
   const _Html$pages();
 
   Fragment user({
-    required String name, // components/pages/user.html:2:9
-    required String surname, // components/pages/user.html:3:12
-    required bool active, // components/pages/user.html:4:11
+    required String name, // fragments/pages/user.html:2:9
+    required String surname, // fragments/pages/user.html:3:12
+    required bool active, // fragments/pages/user.html:4:11
   }) =>
       Fragment._(($out) {
     $out.write('<article>\n  <h1>');
-    _$write($out, name); // components/pages/user.html:8:10
+    _$write($out, name); // fragments/pages/user.html:8:10
     $out.write(' ');
-    _$write($out, surname); // components/pages/user.html:8:21
+    _$write($out, surname); // fragments/pages/user.html:8:21
     $out.write('</h1>\n');
-    if (active) { // components/pages/user.html:9:15
+    if (active) { // fragments/pages/user.html:9:15
       $out.write('    <p>Active user</p>\n');
     }
     $out.write('</article>\n');
   });
 
   Fragment users({
-    required String title, // components/pages/users.html:2:10
-    required List<({String name, bool active})> users, // components/pages/users.html:3:10
-    Fragment? footer, // components/pages/users.html:4:11
+    required String title, // fragments/pages/users.html:2:10
+    required List<({String name, bool active})> users, // fragments/pages/users.html:3:10
+    Fragment? footer, // fragments/pages/users.html:4:11
   }) =>
       Fragment._(($out) {
     $out.write('<section>\n  <h1>');
-    _$write($out, title); // components/pages/users.html:8:10
+    _$write($out, title); // fragments/pages/users.html:8:10
     $out.write('</h1>\n  <ul>\n');
     {
-      var number = 1; // components/pages/users.html:10:5
-      for (final user in (users)) { // components/pages/users.html:10:16
-        if (user.active) { // components/pages/users.html:11:19
+      var number = 1; // fragments/pages/users.html:10:5
+      for (final user in (users)) { // fragments/pages/users.html:10:16
+        if (user.active) { // fragments/pages/users.html:11:19
           $out.write('        <li>');
-          _$write($out, number); // components/pages/users.html:12:16
+          _$write($out, number); // fragments/pages/users.html:12:16
           $out.write('. ');
-          _$write($out, user.name); // components/pages/users.html:12:30
+          _$write($out, user.name); // fragments/pages/users.html:12:30
           $out.write('</li>\n');
         }
-        number++; // components/pages/users.html:10:5
+        number++; // fragments/pages/users.html:10:5
       }
     }
     $out.write('  </ul>\n  ');
-    _$write($out, footer); // components/pages/users.html:16:6
+    _$write($out, footer); // fragments/pages/users.html:16:6
     $out.write('\n</section>\n');
   });
 
@@ -82,16 +82,16 @@ final class _Html$pages$admin {
   const _Html$pages$admin();
 
   Fragment dashboard({
-    required int visits, // components/pages/admin/dashboard.html:1:18
+    required int visits, // fragments/pages/admin/dashboard.html:1:18
   }) =>
       Fragment._(($out) {
     $out.write('<section>\n  <h1>Dashboard</h1>\n  <p>');
-    _$write($out, visits); // components/pages/admin/dashboard.html:5:9
+    _$write($out, visits); // fragments/pages/admin/dashboard.html:5:9
     $out.write(' visits today</p>\n</section>\n');
   });
 }
 
-/// Composable HTML returned by every component; render it with [toHtml].
+/// Composable HTML returned by every fragment function; render it with [toHtml].
 final class Fragment {
   const Fragment._(this._render);
 

@@ -6,7 +6,7 @@ final _wordSeparatorPattern = RegExp(r'[^A-Za-z0-9]+');
 final _memberNamePattern = RegExp(r'^[a-z][A-Za-z0-9]*$');
 
 const _fragmentSource = r'''
-/// Composable HTML returned by every component; render it with [toHtml].
+/// Composable HTML returned by every fragment function; render it with [toHtml].
 final class Fragment {
   const Fragment._(this._render);
 
@@ -123,7 +123,7 @@ void checkTemplateNames({
 }) => _buildNamespaceTree(templatePaths, className, templateDirectory);
 
 /// The path of a template as shown to users, such as
-/// `components/pages/user.html`.
+/// `fragments/pages/user.html`.
 String displayTemplatePath(String templateDirectory, String templatePath) =>
     templateDirectory.isEmpty
     ? templatePath

@@ -98,13 +98,13 @@ void main() {
       () => generateDartLibrary(
         templateSourceByPath: {'pages/user.html': '', 'pages/user/a.html': ''},
         className: 'Html',
-        templateDirectory: 'components',
+        templateDirectory: 'fragments',
       ),
       throwsA(
         isA<Diagnostic>().having(
           (d) => d.message,
           'message',
-          'components/pages/user.html and components/pages/user/ would both '
+          'fragments/pages/user.html and fragments/pages/user/ would both '
               'become Html.pages.user; rename one of them',
         ),
       ),

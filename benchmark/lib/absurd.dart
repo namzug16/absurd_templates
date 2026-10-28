@@ -57,7 +57,7 @@ abstract final class Bench {
   });
 }
 
-/// Composable HTML returned by every component; render it with [toHtml].
+/// Composable HTML returned by every fragment function; render it with [toHtml].
 final class Fragment {
   const Fragment._(this._render);
 
