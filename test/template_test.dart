@@ -133,9 +133,10 @@ $out.write('>');
       'a.html',
     );
     expect(compiled.body, r'''
-final $attributeNames0 = <String>{'id', 'class'};
+final $attributeNames0 = <String, bool>{'id': false};
 $out.write('<p id="x"');
 if (isOn) { // a.html:1:91
+  _$addConditionalAttributeName($attributeNames0, 'class');
   $out.write(' class="on"');
 }
 _$writeAttributes($out, a, $attributeNames0); // a.html:1:110
@@ -144,6 +145,15 @@ if (!isOn) { // a.html:2:5
 }
 $out.write('>');
 ''');
+  });
+
+  test('text may hold "..." that is not a spread of a variable', () {
+    final compiled = compileTemplate(
+      '<x-props m="Map<String, String>"></x-props>'
+          '<p>Wait... ...more</p><script>f(...m, [ ...m ])</script>',
+      'a.html',
+    );
+    expect(compiled.body, contains('Wait... ...more'));
   });
 
   test('leaves a "<" that does not start a tag as text', () {
@@ -372,6 +382,17 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         '"...attributes" only accepts a variable or its fields',
         1,
         50,
+      ),
+      '<x-props m="Map<String, String>"></x-props><p>\n  ...m</p>': (
+        '"...m" only works inside an HTML tag',
+        2,
+        3,
+      ),
+      '<x-props m="Map<String, String>" a="bool"></x-props>'
+          '<x-if ...m case="a">': (
+        '"...m" only works on HTML tags, not on <x-if>',
+        1,
+        59,
       ),
       '<x-if case="a>': ('malformed <x-...> tag', 1, 1),
       'a\n  {{ name': ('"{{" is never closed with "}}"', 2, 3),

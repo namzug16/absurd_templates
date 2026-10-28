@@ -37,12 +37,12 @@ void _$write(StringBuffer out, Object? value) {
 final _$attributeNamePattern = RegExp('^[^\\s"\'<>/=\\x00-\\x1F\\x7F]+\$');
 
 /// Writes each entry of [attributes] as ` name="value"`, failing on names
-/// that are not valid HTML or already in [writtenNames], the names in the
-/// tag so far, which it adds to.
+/// that are not valid HTML or already in [writtenNames]: the tag's names so
+/// far, mapped to whether a map wrote them, which it adds to.
 void _$writeAttributes(
   StringBuffer out,
   Map<String, String>? attributes,
-  Set<String> writtenNames,
+  Map<String, bool> writtenNames,
 ) {
   if (attributes == null) return;
   for (final MapEntry(key: name, :value) in attributes.entries) {
@@ -53,14 +53,10 @@ void _$writeAttributes(
         'is not a valid HTML attribute name',
       );
     }
-    if (!writtenNames.add(name.toLowerCase())) {
-      throw ArgumentError.value(
-        name,
-        'attributes',
-        'is already an attribute of this tag and browsers keep only the '
-            'first; compute one value in Dart and pass it in',
-      );
+    if (writtenNames.containsKey(name.toLowerCase())) {
+      throw ArgumentError.value(name, 'attributes', _$duplicateAttribute);
     }
+    writtenNames[name.toLowerCase()] = true;
     out
       ..write(' ')
       ..write(name)
@@ -69,6 +65,22 @@ void _$writeAttributes(
     out.write('"');
   }
 }
+
+/// Adds a conditional attribute that renders to [writtenNames], failing
+/// when a map already wrote it; conditional ones may share a name.
+void _$addConditionalAttributeName(
+  Map<String, bool> writtenNames,
+  String name,
+) {
+  if (writtenNames[name] ?? false) {
+    throw ArgumentError.value(name, 'attributes', _$duplicateAttribute);
+  }
+  writtenNames[name] = false;
+}
+
+const _$duplicateAttribute =
+    'is already an attribute of this tag and browsers keep only the first; '
+    'compute one value in Dart and pass it in';
 
 /// Writes [text] with &, <, >, " and ' replaced by the same entities as
 /// dart:convert's HtmlEscape, which is several times slower.

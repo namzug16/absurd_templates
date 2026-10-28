@@ -25,7 +25,7 @@ const _specTemplates = {
   isSelected="bool"
   selected="Map<String, String>"
 ></x-props>
-<p class="option" ...extra ?isSelected:...selected>''',
+<p class="option" ...extra ?isSelected:...selected ?!isSelected:title="idle">''',
   'pages/users.html': '''
 <x-props
   title="String"
@@ -78,10 +78,11 @@ void main() {
   print(Html.pages.list(items: [Html.pages.admin.dashboard(), Html.pages.admin.dashboard()]).toHtml());
   print(Html.pages.badges(counts: [1, 2]).toHtml());
   print(Html.ui.option(extra: {'data-value': '"<a>'}, isSelected: true, selected: {'aria-selected': 'true'}).toHtml());
-  print(Html.ui.option(isSelected: false, selected: {'aria-selected': 'true'}).toHtml());
-  for (final extra in [{'CLASS': 'a'}, {'data-a': 'a', 'aria-selected': 'b'}, {'a b': 'c'}]) {
+  print(Html.ui.option(isSelected: false, selected: {'title': 'never rendered'}).toHtml());
+  print(Html.ui.option(isSelected: true, selected: {'title': 'once'}).toHtml());
+  for (final (extra, isSelected) in [({'CLASS': 'a'}, true), ({'data-a': 'a', 'aria-selected': 'b'}, true), ({'a b': 'c'}, true), ({'Title': 'a'}, false)]) {
     try {
-      Html.ui.option(extra: extra, isSelected: true, selected: {'aria-selected': 'true'}).toHtml();
+      Html.ui.option(extra: extra, isSelected: isSelected, selected: {'aria-selected': 'true'}).toHtml();
     } on ArgumentError catch (error) {
       print(error.message);
     }
@@ -103,10 +104,12 @@ void main() {
 <ul><b>admin</b><b>admin</b></ul>
 <b>Tom &amp; Jerry&#39;s: 1</b><b>Tom &amp; Jerry&#39;s: 2</b>
 <p class="option" data-value="&quot;&lt;a&gt;" aria-selected="true">
-<p class="option">
+<p class="option" title="idle">
+<p class="option" title="once">
 is already an attribute of this tag and browsers keep only the first; compute one value in Dart and pass it in
 is already an attribute of this tag and browsers keep only the first; compute one value in Dart and pass it in
 is not a valid HTML attribute name
+is already an attribute of this tag and browsers keep only the first; compute one value in Dart and pass it in
 ''');
   });
 

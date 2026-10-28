@@ -112,10 +112,13 @@ That is the whole language: seven constructs.
   nothing) as `name="value"`, values escaped:
   `<div class="combobox" ...extraAttributes>`. It combines with a
   condition: `?option.isSelected:...selectedAttributes`. Rendering throws
-  `ArgumentError` when a key is not a valid attribute name or is already in
-  the tag (written there, conditional or not, or from an earlier map), so
+  `ArgumentError` when a key is not a valid attribute name or the tag would
+  render it twice (written there, from an earlier map, or a conditional
+  attribute whose condition holds), so
   pass `class` as its own prop and write `class="base {{ extraClass }}"`.
   Keys must come from your code, never from users: `onclick` is a valid key.
+  It only goes inside an HTML tag: `<p>...attributes</p>` and spreads on
+  `<x-…>` tags are errors.
 
 Values in `{{ }}`, `in`, `case`, `?condition:`, `...attributes` and `<x-fragment>` props can only be a
 variable in scope (a prop or an enclosing loop variable) followed by fields

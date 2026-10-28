@@ -36,6 +36,10 @@ final _rawTextOpeningTagNamePattern = RegExp(
 final _conditionalAttributeNamePattern = RegExp(r'^\?(!?)([^:!]+):(.+)$');
 // ...attributes or ?condition:...attributes.
 final _spreadAttributeNamePattern = RegExp(r'^(?:\?!?[^:!]+:)?\.\.\.');
+// A spread starting a word, like the one in "<p>...attributes</p>".
+final _spreadInTextPattern = RegExp(
+  r'(?<![^\s>])\.\.\.([a-zA-Z][a-zA-Z0-9_]*)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|\$[0-9]+))*',
+);
 final _attributePattern = RegExp(
   r'''([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?''',
 );
@@ -366,22 +370,20 @@ CompiledTemplate compileTemplate(
         if (!match[1]!.startsWith('?') && !match[1]!.startsWith('...'))
           match[1]!.toLowerCase(),
     };
+    // Conditional attributes join it only when they render.
     String? writtenNamesVariable;
     if (attributes.any(
       (attribute) => _spreadAttributeNamePattern.hasMatch(attribute.match[1]!),
     )) {
       writtenNamesVariable = '\$attributeNames${spreadTagCount++}';
-      final tagAttributeNames = {
-        ...plainAttributeNames,
-        for (final (:match, offset: _) in attributes)
-          if (_conditionalAttributeNamePattern.firstMatch(match[1]!)
-              case final conditional? when !conditional[3]!.startsWith('...'))
-            conditional[3]!.toLowerCase(),
-      };
+      final plainNameEntries = [
+        for (final name in plainAttributeNames)
+          '${_dartStringLiteral(name)}: false',
+      ];
       flushText();
       emit(
-        'final $writtenNamesVariable = <String>{'
-        '${tagAttributeNames.map(_dartStringLiteral).join(', ')}};',
+        'final $writtenNamesVariable = '
+        '<String, bool>{${plainNameEntries.join(', ')}};',
       );
     }
     var textStart = tagStart;
@@ -454,6 +456,12 @@ CompiledTemplate compileTemplate(
           sourceOffset: spreadMapOffset,
         );
       } else {
+        if (writtenNamesVariable != null) {
+          emit(
+            '_\$addConditionalAttributeName($writtenNamesVariable, '
+            '${_dartStringLiteral(attributeName.toLowerCase())});',
+          );
+        }
         pendingText.write(source.substring(whitespaceStart, offset));
         pendingText.write(attributeName);
         writeTextWithInterpolations(
@@ -471,15 +479,35 @@ CompiledTemplate compileTemplate(
     writeTextWithInterpolations(textStart, tagEnd);
   }
 
+  /// Writes the text from [start] to [end], failing on a `...attributes`
+  /// that only works inside an HTML tag. Code in `<script>` and `<style>`
+  /// may spread its own variables.
+  void writeText(int start, int end) {
+    if (start >= rawTextEnd) {
+      for (final spread in _spreadInTextPattern.allMatches(
+        source.substring(start, end),
+      )) {
+        if (variablesInScope.contains(spread[1])) {
+          fail(
+            '"${spread[0]}" only works inside an HTML tag, like '
+            '<div ${spread[0]}>; here it would render as text',
+            start + spread.start,
+          );
+        }
+      }
+    }
+    pendingText.write(source.substring(start, end));
+  }
+
   while (true) {
     final match = _directiveStartPattern
         .allMatches(source, position)
         .firstOrNull;
     if (match == null) {
-      pendingText.write(source.substring(position));
+      writeText(position, source.length);
       break;
     }
-    pendingText.write(source.substring(position, match.start));
+    writeText(position, match.start);
     final offset = match.start;
 
     switch (match[0]) {
@@ -570,6 +598,16 @@ CompiledTemplate compileTemplate(
           offset + '<x-'.length + tagName.length,
           fail,
         );
+        for (final MapEntry(key: name, value: attribute)
+            in attributes.entries) {
+          if (_spreadAttributeNamePattern.hasMatch(name)) {
+            fail(
+              '"$name" only works on HTML tags, not on <x-$tagName>; '
+              '${tagName == 'fragment' ? 'give the template a Map<String, String> prop and pass the map to it as one' : 'put it on the HTML tag inside'}',
+              attribute.offset,
+            );
+          }
+        }
         final isSelfClosing = tag[3]!.isNotEmpty;
         if (tagName == 'fragment' && !isSelfClosing) {
           fail(

@@ -173,11 +173,17 @@ writes nothing. `?condition:...attributes` and `?!condition:...attributes`
 write it only when the condition is `true` or `false`.
 
 Map keys are only known when rendering, so rendering throws an
-`ArgumentError` when a key is not a valid attribute name, or is already an
-attribute of the tag: written there, conditional or not, or from an earlier
-map in it. Pass a class to merge as its own prop instead:
+`ArgumentError` when a key is not a valid attribute name, or when the tag
+renders that attribute twice: a key that is also written in the tag, comes
+from an earlier map, or matches a conditional attribute whose condition
+holds. `?a:...m ?!a:class="x"` is fine even if `m` has `class`, since only
+one of them renders. Pass a class to merge as its own prop instead:
 `class="combobox {{ extraClass }}"`. Keys are written as they are, and
 `onclick` is a valid one, so never take them from user input.
+
+A spread only goes inside an HTML tag: `<p>...attributes</p>` (when
+`attributes` is declared) and `...attributes` on an `<x-…>` tag are errors.
+Code in `<script>` and `<style>` keeps its own `...`.
 
 ## Generated API
 
