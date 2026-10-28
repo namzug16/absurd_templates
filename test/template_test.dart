@@ -12,7 +12,7 @@ void main() {
 ></x-props>
 
 <h1>{{ title }}</h1>
-<x-for in="users" as="user" indexed="1" index-as="number">
+<x-for in="users" as="user" index-from="1" index-as="number">
 <x-if case="user.active"><li>{{ number }}. {{ user.name }}</li></x-if>
 </x-for>
 ''', 'users.html');
@@ -47,7 +47,7 @@ $out.write('</h1>\n');
   test('compiles <x-fragment> into a call with one argument per prop', () {
     final compiled = compileTemplate(
       '<x-props position="int"></x-props>\n'
-          '<p><x-fragment _="/ui/label.html" text="it\'s" '
+          '<p><x-fragment template="/ui/label.html" text="it\'s" '
           'position="{{ position }}" /></p>',
       'a.html',
       accessPathByTemplatePath: {'ui/label.html': 'Html.ui.label'},
@@ -55,8 +55,8 @@ $out.write('</h1>\n');
     expect(compiled.body, r'''
 $out.write('<p>');
 _$write($out, Html.ui.label( // a.html:2:4
-  text: 'it\'s', // a.html:2:41
-  position: position, // a.html:2:57
+  text: 'it\'s', // a.html:2:48
+  position: position, // a.html:2:64
 )); // a.html:2:4
 $out.write('</p>');
 ''');
@@ -65,7 +65,7 @@ $out.write('</p>');
       line: 2,
       column: 4,
       lineText:
-          '<p><x-fragment _="/ui/label.html" text="it\'s" '
+          '<p><x-fragment template="/ui/label.html" text="it\'s" '
           'position="{{ position }}" /></p>',
     ));
   });
@@ -74,7 +74,7 @@ $out.write('</p>');
     final compiled = compileTemplate(
       '<x-props title="String" users="List<String>"></x-props>\n'
           '<div>\n'
-          '  <x-fragment _="/layout/card.html" title="{{ title }}">\n'
+          '  <x-fragment template="/layout/card.html" title="{{ title }}">\n'
           '    <x-slot name="body">\n'
           '      <x-for in="users" as="user">\n'
           '        <p>{{ user }}</p>\n'
@@ -89,7 +89,7 @@ $out.write('</p>');
     expect(compiled.body, r'''
 $out.write('<div>\n  ');
 _$write($out, Html.layout.card( // a.html:3:3
-  title: title, // a.html:3:44
+  title: title, // a.html:3:51
   body: Fragment._(($out) { // a.html:4:19
     for (final user in (users)) { // a.html:5:18
       $out.write('        <p>');
@@ -285,16 +285,21 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         17,
       ),
       '<x-props a="int" a="int"></x-props>': ('"a" is declared twice', 1, 18),
+      '<x-props template="String"></x-props>': (
+        '"template" cannot be a prop name',
+        1,
+        20,
+      ),
       '<x-for in="xs"></x-for>': ('needs a non-empty "as" attribute', 1, 1),
-      '<x-for in="xs" as="x" indexed="1"></x-for>': (
+      '<x-for in="xs" as="x" index-from="1"></x-for>': (
         'needs a non-empty "index-as"',
         1,
         1,
       ),
-      '<x-for in="xs" as="x" indexed="a" index-as="i"></x-for>': (
-        '"indexed" must be an integer such as 0 or 1, got "a"',
+      '<x-for in="xs" as="x" index-from="a" index-as="i"></x-for>': (
+        '"index-from" must be an integer such as 0 or 1, got "a"',
         1,
-        32,
+        35,
       ),
       '<x-for in="xs" as="x" key="k"></x-for>': (
         'does not support the "key" attribute; supported attributes: in, as',
@@ -339,8 +344,8 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
           ('"in" only accepts a variable or its fields', 1, 46),
       '<x-props xs="List<int>"></x-props><x-for in="xs" as="x"></x-for>{{ x }}':
           ('"x" is not declared', 1, 68),
-      '<x-props xs="List<int>"></x-props><x-for in="xs" as="x" indexed="1" index-as="x"></x-for>':
-          ('"index-as" and "as" must name different variables', 1, 79),
+      '<x-props xs="List<int>"></x-props><x-for in="xs" as="x" index-from="1" index-as="x"></x-for>':
+          ('"index-as" and "as" must name different variables', 1, 82),
       '</x-if>': ('</x-if> has no matching <x-if>', 1, 1),
       '<x-include></x-include>': (
         'supported directives are <x-props>, <x-for>, <x-if>, <x-if-not>, '
@@ -349,20 +354,28 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         1,
       ),
       '<x-if case="a" />': ('<x-if> cannot end with />', 1, 1),
-      '<x-fragment />': ('<x-fragment> needs a non-empty "_"', 1, 1),
-      '<x-fragment _="ui/label.html" />': ('starting with / and ending', 1, 16),
-      '<x-fragment _="/missing.html" />': (
+      '<x-fragment />': ('<x-fragment> needs a non-empty "template"', 1, 1),
+      '<x-fragment template="ui/label.html" />': (
+        'starting with / and ending',
+        1,
+        23,
+      ),
+      '<x-fragment template="/missing.html" />': (
         'there is no template /missing.html',
         1,
-        16,
+        23,
       ),
-      '<x-fragment _="/ui/label.html">': ('<x-fragment> is never closed', 1, 1),
-      '<x-fragment _="/ui/label.html" /></x-fragment>': (
+      '<x-fragment template="/ui/label.html">': (
+        '<x-fragment> is never closed',
+        1,
+        1,
+      ),
+      '<x-fragment template="/ui/label.html" /></x-fragment>': (
         '</x-fragment> has no matching <x-fragment>',
         1,
-        34,
+        41,
       ),
-      '<x-fragment _="/ui/label.html">\n  <p>hi</p></x-fragment>': (
+      '<x-fragment template="/ui/label.html">\n  <p>hi</p></x-fragment>': (
         '<x-fragment> can only contain <x-slot> tags',
         2,
         3,
@@ -372,68 +385,65 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         1,
         1,
       ),
-      '<x-fragment _="/ui/label.html"><x-slot name="a"><x-slot name="b">'
+      '<x-fragment template="/ui/label.html"><x-slot name="a"><x-slot name="b">'
           '</x-slot></x-slot></x-fragment>': (
         '<x-slot> only goes directly inside <x-fragment>',
         1,
-        49,
+        56,
       ),
-      '<x-fragment _="/ui/label.html"><x-slot></x-slot></x-fragment>': (
+      '<x-fragment template="/ui/label.html"><x-slot></x-slot></x-fragment>': (
         '<x-slot> needs a non-empty "name"',
         1,
-        32,
+        39,
       ),
-      '<x-fragment _="/ui/label.html"><x-slot name="a" as="b"></x-slot>'
+      '<x-fragment template="/ui/label.html"><x-slot name="a" as="b"></x-slot>'
           '</x-fragment>': (
         '<x-slot> does not support the "as" attribute',
         1,
-        53,
+        60,
       ),
-      '<x-fragment _="/ui/label.html"><x-slot name="a-b"></x-slot>'
+      '<x-fragment template="/ui/label.html"><x-slot name="a-b"></x-slot>'
           '</x-fragment>': (
         '"a-b" is not a valid prop name',
         1,
-        46,
+        53,
       ),
-      '<x-fragment _="/ui/label.html" text="a"><x-slot name="text"></x-slot>'
+      '<x-fragment template="/ui/label.html" text="a"><x-slot name="text"></x-slot>'
           '</x-fragment>': (
         'prop "text" is already passed to this <x-fragment>',
         1,
-        55,
+        62,
       ),
-      '<x-fragment _="/ui/label.html"><x-slot name="a" /></x-fragment>': (
-        '<x-slot> cannot end with />',
-        1,
-        32,
-      ),
-      '<x-fragment _="/ui/label.html"><x-slot name="a"></x-fragment>': (
+      '<x-fragment template="/ui/label.html"><x-slot name="a" /></x-fragment>':
+          ('<x-slot> cannot end with />', 1, 39),
+      '<x-fragment template="/ui/label.html"><x-slot name="a"></x-fragment>': (
         '</x-fragment> found while <x-slot> from line 1 is still open',
+        1,
+        56,
+      ),
+      '<x-props a="int"></x-props><x-fragment template="/ui/label.html" a={{ a }} />':
+          ('quote {{ }} values, like a="{{ a }}"', 1, 66),
+      '<x-props a="int"></x-props><x-fragment template="/ui/label.html" a="#{{ a }}" />':
+          ('must be plain text or exactly one quoted {{ }}', 1, 69),
+      '<x-fragment template="/ui/label.html" text="{{ b }}" />': (
+        '"b" is not declared',
+        1,
+        48,
+      ),
+      '<x-fragment template="/ui/label.html" text="Tom &amp; Jerry" />': (
+        'write "&amp;" in prop "text" as the plain character',
         1,
         49,
       ),
-      '<x-props a="int"></x-props><x-fragment _="/ui/label.html" a={{ a }} />':
-          ('quote {{ }} values, like a="{{ a }}"', 1, 59),
-      '<x-props a="int"></x-props><x-fragment _="/ui/label.html" a="#{{ a }}" />':
-          ('must be plain text or exactly one quoted {{ }}', 1, 62),
-      '<x-fragment _="/ui/label.html" text="{{ b }}" />': (
-        '"b" is not declared',
-        1,
-        41,
-      ),
-      '<x-fragment _="/ui/label.html" text="Tom &amp; Jerry" />': (
-        'write "&amp;" in prop "text" as the plain character',
-        1,
-        42,
-      ),
-      '<x-fragment _="/ui/label.html" active />': (
+      '<x-fragment template="/ui/label.html" active />': (
         'prop "active" needs a value',
         1,
-        32,
+        39,
       ),
-      '<x-fragment _="/ui/label.html" user-name="Ada" />': (
+      '<x-fragment template="/ui/label.html" user-name="Ada" />': (
         '"user-name" is not a valid prop name',
         1,
-        43,
+        50,
       ),
       '<x-props a="bool"></x-props><button <x-if case="a">disabled</x-if>>': (
         '<x-if> cannot go inside an HTML tag',

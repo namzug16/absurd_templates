@@ -82,12 +82,12 @@ typedef _Attribute = ({String? value, int offset});
 
 const _forUsage =
     '<x-for in="items" as="item"> or '
-    '<x-for in="items" as="item" indexed="1" index-as="position">';
+    '<x-for in="items" as="item" index-from="1" index-as="position">';
 const _ifUsage = '<x-if case="condition">';
 const _ifNotUsage = '<x-if-not case="condition">';
-const _fragmentUsage = '<x-fragment _="/ui/label.html" text="Users" />';
+const _fragmentUsage = '<x-fragment template="/ui/label.html" text="Users" />';
 const _slotUsage =
-    '<x-fragment _="/layout/primary.html"><x-slot name="content">...</x-slot>'
+    '<x-fragment template="/layout/primary.html"><x-slot name="content">...</x-slot>'
     '</x-fragment>';
 const _conditionalAttributeUsage =
     '?isDisabled:disabled, ?isActive:class="active" or ?!isActive:class="idle"';
@@ -689,6 +689,13 @@ CompiledTemplate compileTemplate(
                     '"$name" is not a valid parameter name; $_nameRules',
                     attribute.offset,
                   )
+                else if (name == 'template')
+                  fail(
+                    '"template" cannot be a prop name, since '
+                    '<x-fragment template="..."> holds the path of the '
+                    'template to render; rename the prop',
+                    attribute.offset,
+                  )
                 else if (attribute.value?.contains('&') ?? false)
                   fail(
                     'write the type of "$name" as plain Dart, such as '
@@ -720,7 +727,7 @@ CompiledTemplate compileTemplate(
             rejectUnknownAttributes(attributes, 'for', const [
               'in',
               'as',
-              'indexed',
+              'index-from',
               'index-as',
             ]);
             final iterable = requiredAttribute(
@@ -737,21 +744,21 @@ CompiledTemplate compileTemplate(
             );
             String? indexVariable;
             int? start;
-            if (attributes.containsKey('indexed') ||
+            if (attributes.containsKey('index-from') ||
                 attributes.containsKey('index-as')) {
-              final indexed = requiredAttribute(
+              final indexFrom = requiredAttribute(
                 attributes,
-                'indexed',
+                'index-from',
                 directive: 'for',
                 usage: _forUsage,
                 tagOffset: offset,
               );
               start =
-                  int.tryParse(indexed.value) ??
+                  int.tryParse(indexFrom.value) ??
                   fail(
-                    '"indexed" must be an integer such as 0 or 1, '
-                    'got "${indexed.value}"',
-                    indexed.offset,
+                    '"index-from" must be an integer such as 0 or 1, '
+                    'got "${indexFrom.value}"',
+                    indexFrom.offset,
                   );
               indexVariable = variableAttribute(
                 attributes,
@@ -814,7 +821,7 @@ CompiledTemplate compileTemplate(
           case 'fragment':
             final fragmentPath = requiredAttribute(
               attributes,
-              '_',
+              'template',
               directive: 'fragment',
               usage: _fragmentUsage,
               tagOffset: offset,
@@ -822,7 +829,7 @@ CompiledTemplate compileTemplate(
             if (!fragmentPath.value.startsWith('/') ||
                 !fragmentPath.value.endsWith('.html')) {
               fail(
-                '"_" must be the path of a template from the input '
+                '"template" must be the path of a template from the input '
                 'directory, starting with / and ending with .html, like '
                 '"/ui/label.html"; got "${fragmentPath.value}"',
                 fragmentPath.offset,
@@ -840,7 +847,7 @@ CompiledTemplate compileTemplate(
             final arguments = [
               for (final MapEntry(key: name, value: attribute)
                   in attributes.entries)
-                if (name != '_')
+                if (name != 'template')
                   '$name: ${fragmentArgument(name, attribute)}, '
                       '${sourceMarker(attribute.offset)}',
             ];

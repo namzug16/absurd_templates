@@ -278,21 +278,21 @@ error: Undefined class 'Strng'.
         '<x-props label="String" count="int"></x-props>{{ label }}{{ count }}',
       );
       writeProjectFile('fragments/page.html', '''
-<x-fragment _="/ui/badge.html" label="Users" count="3" />
+<x-fragment template="/ui/badge.html" label="Users" count="3" />
 ''');
       writeProjectFile(
         'fragments/undeclared.html',
-        '<x-fragment _="/ui/badge.html" count="{{ missing }}" />',
+        '<x-fragment template="/ui/badge.html" count="{{ missing }}" />',
       );
       writeProjectFile('fragments/other.html', '''
-<x-fragment _="/ok.html"
+<x-fragment template="/ok.html"
   name="Ada"
   colour="red" />
-<x-fragment _="/ok.html" />
+<x-fragment template="/ok.html" />
 ''');
       writeProjectFile('fragments/slotted.html', '''
 <x-props count="int"></x-props>
-<x-fragment _="/ui/badge.html" count="{{ count }}">
+<x-fragment template="/ui/badge.html" count="{{ count }}">
   <x-slot name="label">Users</x-slot>
 </x-fragment>
 ''');
@@ -304,7 +304,7 @@ error: Undefined class 'Strng'.
         result.stdout,
         contains('''
 error: The argument type 'String' can't be assigned to the parameter type 'int'. 
-  --> fragments/page.html:1:53
+  --> fragments/page.html:1:60
 '''),
       );
       expect(result.stdout, contains('"missing" is not declared'));
@@ -334,7 +334,7 @@ error: The argument type 'Fragment' can't be assigned to the parameter type 'Str
     test('analyzes the templates a checked file renders', () async {
       writeProjectFile(
         'fragments/page.html',
-        '<x-fragment _="/ok.html" name="Ada" />',
+        '<x-fragment template="/ok.html" name="Ada" />',
       );
 
       final result = await _runAbs(projectDirectory, [
@@ -347,8 +347,8 @@ error: The argument type 'Fragment' can't be assigned to the parameter type 'Str
     });
 
     test('rejects templates that render each other', () async {
-      writeProjectFile('fragments/a.html', '<x-fragment _="/b.html" />');
-      writeProjectFile('fragments/b.html', '<x-fragment _="/a.html" />');
+      writeProjectFile('fragments/a.html', '<x-fragment template="/b.html" />');
+      writeProjectFile('fragments/b.html', '<x-fragment template="/a.html" />');
 
       final result = await _runAbs(projectDirectory, [
         'check',
@@ -363,7 +363,10 @@ error: The argument type 'Fragment' can't be assigned to the parameter type 'Str
     });
 
     test('reports naming conflicts next to a missing template', () async {
-      writeProjectFile('fragments/a.html', '<x-fragment _="/missing.html" />');
+      writeProjectFile(
+        'fragments/a.html',
+        '<x-fragment template="/missing.html" />',
+      );
       writeProjectFile('fragments/user-page.html', '');
       writeProjectFile('fragments/user_page.html', '');
 

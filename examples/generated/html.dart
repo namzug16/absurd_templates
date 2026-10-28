@@ -65,8 +65,8 @@ final class _Html$pages {
         if (user.active) { // fragments/pages/users.html:11:19
           $out.write('        ');
           _$write($out, Html.ui.userItem( // fragments/pages/users.html:12:9
-            number: number, // fragments/pages/users.html:12:52
-            name: user.name, // fragments/pages/users.html:12:72
+            number: number, // fragments/pages/users.html:12:59
+            name: user.name, // fragments/pages/users.html:12:79
           )); // fragments/pages/users.html:12:9
           $out.write('\n');
         }

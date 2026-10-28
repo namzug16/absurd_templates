@@ -83,7 +83,7 @@ the generated file also lead back to the template.
 
 <section>
   <h1>{{ title }}</h1>
-  <x-for in="users" as="user" indexed="1" index-as="number">
+  <x-for in="users" as="user" index-from="1" index-as="number">
     <x-if case="user.active">
       <li>{{ number }}. {{ user.name }}</li>
     </x-if>
@@ -107,7 +107,8 @@ the generated file also lead back to the template.
 - `{{ }}` cannot go inside `<script>` or `<style>`, where HTML escaping does
   not make values safe as code. Put the value in a quoted `data-` attribute
   and read it from the script.
-- `<x-for in as [indexed index-as]>`, `<x-if case>` and `<x-if-not case>`
+- `<x-for in as [index-from index-as]>` (`index-from` is the first index,
+  such as `0` or `1`), `<x-if case>` and `<x-if-not case>`
   render only their children; `<x-if-not>` renders them when `case` is
   `false`, so it is the `else` of an `<x-if>` on the same value.
   A directive tag alone on its line is removed together with that line.
@@ -116,11 +117,12 @@ the generated file also lead back to the template.
 ### Rendering another template
 
 ```html
-<x-fragment _="/ui/badge.html" label="Users" count="{{ users.length }}" />
+<x-fragment template="/ui/badge.html" label="Users" count="{{ users.length }}" />
 ```
 
-`<x-fragment>` renders the template named by `_`, a path from the input
-directory starting with `/`. Every other attribute is one of its props:
+`<x-fragment>` renders the template named by `template`, a path from the
+input directory starting with `/`. Every other attribute is one of its
+props, so no template can have a prop named `template`:
 
 - `label="Users"` passes the text as a `String`.
 - `count="{{ users.length }}"` passes the value as it is, so `int`,
@@ -132,7 +134,7 @@ End it with `/>`, or close it with `</x-fragment>` to pass markup with
 `<x-slot>`:
 
 ```html
-<x-fragment _="/layout/primary.html" title="{{ title }}">
+<x-fragment template="/layout/primary.html" title="{{ title }}">
   <x-slot name="content">
     <main>{{ body }}</main>
   </x-slot>

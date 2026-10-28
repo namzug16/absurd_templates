@@ -18,7 +18,7 @@ const _specTemplates = {
       '<b>{{ label }}: {{ count }}{{ note }}</b>',
   'pages/badges.html': '''
 <x-props counts="List<int>"></x-props>
-<x-for in="counts" as="count"><x-fragment _="/ui/badge.html" label="Tom & Jerry's" count="{{ count }}" /></x-for>''',
+<x-for in="counts" as="count"><x-fragment template="/ui/badge.html" label="Tom & Jerry's" count="{{ count }}" /></x-for>''',
   'ui/option.html': '''
 <x-props
   extra="Map<String, String>?"
@@ -31,7 +31,7 @@ const _specTemplates = {
 <section><h2>{{ title }}</h2>{{ body }}{{ footer }}</section>''',
   'pages/cards.html': '''
 <x-props names="List<String>"></x-props>
-<x-for in="names" as="name"><x-fragment _="/layout/card.html" title="{{ name }}">
+<x-for in="names" as="name"><x-fragment template="/layout/card.html" title="{{ name }}">
   <x-slot name="body"><p>Hi {{ name }}</p></x-slot>
 </x-fragment></x-for>''',
   'pages/users.html': '''
@@ -41,7 +41,7 @@ const _specTemplates = {
   footer="Fragment?"
 ></x-props>
 <h1>{{ title }}</h1>
-<x-for in="users" as="user" indexed="1" index-as="number"><x-if case="user.active"><li>{{ number }}. {{ user.name }}</li></x-if></x-for>
+<x-for in="users" as="user" index-from="1" index-as="number"><x-if case="user.active"><li>{{ number }}. {{ user.name }}</li></x-if></x-for>
 {{ footer }}''',
 };
 
@@ -156,14 +156,14 @@ is already an attribute of this tag and browsers keep only the first; compute on
   group('rejects templates that render themselves', () {
     final messageByTemplates = {
       'directly': (
-        {'a.html': '<x-fragment _="/a.html" />'},
+        {'a.html': '<x-fragment template="/a.html" />'},
         'closes the cycle /a.html -> /a.html',
       ),
       'through other templates': (
         {
-          'a.html': '<x-fragment _="/b.html" />',
-          'b.html': '<p>\n  <x-fragment _="/c.html" /></p>',
-          'c.html': '<x-fragment _="/a.html" />',
+          'a.html': '<x-fragment template="/b.html" />',
+          'b.html': '<p>\n  <x-fragment template="/c.html" /></p>',
+          'c.html': '<x-fragment template="/a.html" />',
         },
         'closes the cycle /a.html -> /b.html -> /c.html -> /a.html',
       ),
@@ -197,13 +197,14 @@ is already an attribute of this tag and browsers keep only the first; compute on
     expect(
       generateDartLibrary(
         templateSourceByPath: {
-          'a.html': '<x-fragment _="/b.html" /><x-fragment _="/c.html" />',
-          'b.html': '<x-fragment _="/c.html" />',
+          'a.html':
+              '<x-fragment template="/b.html" /><x-fragment template="/c.html" />',
+          'b.html': '<x-fragment template="/c.html" />',
           'c.html': '<p>c</p>',
         },
         className: 'Html',
       ),
-      contains('_\$write(\$out, Html.c( // a.html:1:27'),
+      contains('_\$write(\$out, Html.c( // a.html:1:34'),
     );
   });
 

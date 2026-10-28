@@ -1,7 +1,7 @@
 <x-props users="List<({String name, String email, String bio, bool admin})>"></x-props>
 
 <table>
-  <x-for in="users" as="user" indexed="1" index-as="number">
+  <x-for in="users" as="user" index-from="1" index-as="number">
     <tr>
       <td>{{ number }}</td>
       <td>{{ user.name }}</td>

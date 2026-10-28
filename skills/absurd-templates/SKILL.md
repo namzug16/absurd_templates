@@ -65,9 +65,9 @@ usually say what to do next; read the whole message before changing code.
 <section>
   <h1>{{ title }}</h1>
   <ul>
-    <x-for in="users" as="user" indexed="1" index-as="number">
+    <x-for in="users" as="user" index-from="1" index-as="number">
       <x-if case="user.active">
-        <x-fragment _="/ui/user-item.html" number="{{ number }}" name="{{ user.name }}" />
+        <x-fragment template="/ui/user-item.html" number="{{ number }}" name="{{ user.name }}" />
       </x-if>
     </x-for>
   </ul>
@@ -87,14 +87,15 @@ That is the whole language: seven constructs.
   (such as `List<Fragment>`) writes each item in order. It works in text and
   inside quoted attributes: `<a class="{{ kind }}">`.
 - **`<x-for in="list" as="item">`** repeats its children for each item of any
-  `Iterable`. For a counter, add both `indexed="1"` (the start value, any
+  `Iterable`. For a counter, add both `index-from="1"` (the start value, any
   integer) and `index-as="number"` (the variable name).
 - **`<x-if case="flag">`** renders its children when the value is `true`. It
   must be a `bool`. **`<x-if-not case="flag">`** renders them when it is
   `false`; there is no `else`, so pair the two on the same value.
-- **`<x-fragment _="/ui/user-item.html" name="Ada" />`** renders another
-  template: `_` is its path from the input directory, starting with `/`,
-  and every other attribute is one of its props. `name="Ada"` passes a
+- **`<x-fragment template="/ui/user-item.html" name="Ada" />`** renders another
+  template: `template` is its path from the input directory, starting
+  with `/`, and every other attribute is one of its props (so no template
+  can have a prop named `template`). `name="Ada"` passes a
   `String`; `count="{{ count }}"` passes the value as it is (quoted, and
   only the `{{ }}`, never mixed with text). Omit nullable props to pass
   `null`. End it with `/>`, or close it with `</x-fragment>` and pass
@@ -150,8 +151,8 @@ Other rules:
 | `else` | `<x-if-not>` on the same value: `<x-if case="user.active">…</x-if><x-if-not case="user.active">…</x-if-not>`. |
 | `a && b`, `count > 0` | Compute a `bool` in Dart (`showBanner: !user.dismissed`) and pass it as a prop. |
 | Formatting (dates, money, uppercase) | Format in Dart and pass a `String`. |
-| One fragment inside another | `<x-fragment _="/path.html" ... />` when the template always renders the same one; a `Fragment` prop (`content="Fragment"`) when the caller picks it in Dart. |
-| A page inside a layout | Wrap the page in the layout: `<x-fragment _="/layout/primary.html" title="{{ title }}"><x-slot name="content">…</x-slot></x-fragment>`. |
+| One fragment inside another | `<x-fragment template="/path.html" ... />` when the template always renders the same one; a `Fragment` prop (`content="Fragment"`) when the caller picks it in Dart. |
+| A page inside a layout | Wrap the page in the layout: `<x-fragment template="/layout/primary.html" title="{{ title }}"><x-slot name="content">…</x-slot></x-fragment>`. |
 | Text mixed with a value in a prop | Build the `String` in Dart and pass it as a prop. |
 | A template rendering itself (trees, threads) | Not allowed, even through other templates; build the nested `Fragment`s in Dart. |
 | A list of fragments | A `List<Fragment>` prop, written with `{{ cards }}`. |
