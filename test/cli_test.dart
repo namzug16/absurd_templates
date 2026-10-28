@@ -286,10 +286,16 @@ error: Undefined class 'Strng'.
       );
       writeProjectFile('fragments/other.html', '''
 <x-fragment template="/ok.html"
-  name="Ada"
-  colour="red" />
-<x-fragment template="/ok.html" />
+  nmae="Ada" />
 ''');
+      writeProjectFile(
+        'fragments/missing-prop.html',
+        '<x-fragment template="/ok.html" />',
+      );
+      writeProjectFile(
+        'fragments/missing-template.html',
+        '<x-fragment template="/ui/bagde.html" />',
+      );
       writeProjectFile('fragments/slotted.html', '''
 <x-props count="int"></x-props>
 <x-fragment template="/ui/badge.html" count="{{ count }}">
@@ -311,15 +317,21 @@ error: The argument type 'String' can't be assigned to the parameter type 'int'.
       expect(
         result.stdout,
         contains('''
-error: The named parameter 'colour' isn't defined.
-  --> fragments/other.html:3:11
+error: /ok.html has no prop "nmae"; did you mean "name"? its props are name
+  --> fragments/other.html:2:9
 '''),
       );
       expect(
         result.stdout,
         contains('''
 error: The named parameter 'name' is required, but there's no corresponding argument.
-  --> fragments/other.html:4:1
+  --> fragments/missing-prop.html:1:1
+'''),
+      );
+      expect(
+        result.stdout,
+        contains('''
+error: there is no template /ui/bagde.html in the input directory; did you mean "/ui/badge.html"? paths start at the input directory
 '''),
       );
       expect(

@@ -31,6 +31,7 @@ Future<List<Diagnostic>> checkTemplates({
 
   // Templates rendered with <x-fragment> are compiled and analyzed too, or
   // the checked templates would call functions missing from the library.
+  final propNamesByTemplatePath = propNamesOfTemplates(templateSourceByPath);
   final templatePathsToCompile = [...checkedTemplatePaths];
   final renderedTemplatePathsByCompilablePath = <String, List<String>>{};
   for (var index = 0; index < templatePathsToCompile.length; index++) {
@@ -40,6 +41,7 @@ Future<List<Diagnostic>> checkTemplates({
         templateSourceByPath[templatePath]!,
         displayTemplatePath(templateDirectory, templatePath),
         accessPathByTemplatePath: accessPathByTemplatePath,
+        propNamesByTemplatePath: propNamesByTemplatePath,
       );
       final renderedTemplatePaths = [
         for (final rendered in compiled.renderedFragments)

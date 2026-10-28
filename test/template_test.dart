@@ -525,6 +525,34 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         46,
       ),
       '<!-- comment': ('"<!--" is never closed', 1, 1),
+      '<x-props title="String"></x-props>{{ titel }}': (
+        '"titel" is not declared; did you mean "title"?',
+        1,
+        38,
+      ),
+      '<x-fragment template="/ui/lable.html" />': (
+        'there is no template /ui/lable.html in the input directory; '
+            'did you mean "/ui/label.html"?',
+        1,
+        23,
+      ),
+      '<x-fragment template="/ui/badge.html" lable="Users" />': (
+        '/ui/badge.html has no prop "lable"; did you mean "label"? '
+            'its props are label',
+        1,
+        46,
+      ),
+      '<x-fragment template="/ui/badge.html" icon="x" />': (
+        '/ui/badge.html has no prop "icon"; its props are label',
+        1,
+        45,
+      ),
+      '<x-fragment template="/ui/badge.html"><x-slot name="body"></x-slot>'
+          '</x-fragment>': (
+        '/ui/badge.html has no prop "body"',
+        1,
+        53,
+      ),
     };
     for (final MapEntry(key: source, value: (message, line, column))
         in invalidTemplates.entries) {
@@ -533,7 +561,13 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
           () => compileTemplate(
             source,
             'a.html',
-            accessPathByTemplatePath: {'ui/label.html': 'Html.ui.label'},
+            accessPathByTemplatePath: {
+              'ui/label.html': 'Html.ui.label',
+              'ui/badge.html': 'Html.ui.badge',
+            },
+            propNamesByTemplatePath: {
+              'ui/badge.html': {'label'},
+            },
           ),
           throwsA(
             isA<Diagnostic>()

@@ -142,6 +142,7 @@ String generateDartLibrary({
     templateDirectory,
   );
   final accessPathByTemplatePath = _accessPathByTemplatePath(root);
+  final propNamesByTemplatePath = propNamesOfTemplates(templateSourceByPath);
   final renderedFragmentsByTemplatePath = <String, List<RenderedFragment>>{};
   void compileNamespace(_Namespace namespace) {
     for (final MapEntry(key: methodName, value: templatePath)
@@ -150,6 +151,7 @@ String generateDartLibrary({
         templateSourceByPath[templatePath]!,
         displayTemplatePath(templateDirectory, templatePath),
         accessPathByTemplatePath: accessPathByTemplatePath,
+        propNamesByTemplatePath: propNamesByTemplatePath,
       );
       namespace.compiledTemplateByMethodName[methodName] = compiled;
       renderedFragmentsByTemplatePath[templatePath] =

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'diagnostic.dart';
 
 /// Dart words that cannot be used as generated method or parameter names.
@@ -109,19 +111,25 @@ const _nameRules =
 /// `<x-fragment>` tags are resolved against it. Null skips resolving them,
 /// for checking syntax when template names conflict.
 ///
+/// [propNamesByTemplatePath], from [propNamesOfTemplates], lets
+/// `<x-fragment>` reject props the rendered template does not declare.
+///
 /// Throws a [Diagnostic] pointing at the offending line on invalid markup.
 CompiledTemplate compileTemplate(
   String source,
   String templatePath, {
   Map<String, String>? accessPathByTemplatePath,
+  Map<String, Set<String>> propNamesByTemplatePath = const {},
 }) {
   final body = StringBuffer();
   final renderedFragments = <RenderedFragment>[];
   final pendingText = StringBuffer();
   final openDirectives =
       <({String name, String? indexVariable, int offset, int variableCount})>[];
-  // Prop names already passed to each open <x-fragment>, innermost last.
-  final argumentNamesOfOpenFragments = <Set<String>>[];
+  // The template each open <x-fragment> renders and the prop names already
+  // passed to it, innermost last.
+  final openFragments =
+      <({String templatePath, Set<String> passedPropNames})>[];
   // Props, then the variables of each enclosing <x-for>, innermost last.
   final variablesInScope = <String>[];
   final lineStartOffsets = [0, for (final m in '\n'.allMatches(source)) m.end];
@@ -205,8 +213,9 @@ CompiledTemplate compileTemplate(
     final variable = value.split('.').first;
     if (!variablesInScope.contains(variable)) {
       fail(
-        '"$variable" is not declared; declare it in <x-props> or as an '
-        '<x-for> variable. '
+        '"$variable" is not declared; '
+        '${_didYouMean(variable, variablesInScope)}declare it in <x-props> '
+        'or as an <x-for> variable. '
         '${variablesInScope.isEmpty ? 'Nothing is declared here' : 'Declared here: ${variablesInScope.toSet().join(', ')}'}',
         offset,
       );
@@ -269,12 +278,35 @@ CompiledTemplate compileTemplate(
     return attribute.value;
   }
 
-  /// The Dart value passed for the [name] prop of a `<x-fragment>`: a
-  /// string literal, or the variable in `{{ }}` as it is.
-  String fragmentArgument(String name, _Attribute attribute) {
+  /// Fails when the template at [renderedTemplatePath] has no [propName]
+  /// prop. Templates whose props are unknown are left to the Dart analyzer.
+  void requireDeclaredProp(
+    String renderedTemplatePath,
+    String propName,
+    int offset,
+  ) {
+    final propNames = propNamesByTemplatePath[renderedTemplatePath];
+    if (propNames == null || propNames.contains(propName)) return;
+    fail(
+      '/$renderedTemplatePath has no prop "$propName"; '
+      '${_didYouMean(propName, propNames)}'
+      '${propNames.isEmpty ? 'it takes no props' : 'its props are ${propNames.join(', ')}'}',
+      offset,
+    );
+  }
+
+  /// The Dart value passed for the [name] prop of the `<x-fragment>` that
+  /// renders [renderedTemplatePath]: a string literal, or the variable in
+  /// `{{ }}` as it is.
+  String fragmentArgument(
+    String renderedTemplatePath,
+    String name,
+    _Attribute attribute,
+  ) {
     if (!_isValidName(name)) {
       fail('"$name" is not a valid prop name; $_nameRules', attribute.offset);
     }
+    requireDeclaredProp(renderedTemplatePath, name, attribute.offset);
     final value =
         attribute.value ??
         fail(
@@ -619,7 +651,7 @@ CompiledTemplate compileTemplate(
         indentLevel--;
         switch (innermost.name) {
           case 'fragment':
-            argumentNamesOfOpenFragments.removeLast();
+            openFragments.removeLast();
             emit('));', sourceOffset: innermost.offset);
           case 'slot':
             emit('}),');
@@ -841,14 +873,17 @@ CompiledTemplate compileTemplate(
                 : accessPathByTemplatePath[renderedTemplatePath] ??
                       fail(
                         'there is no template ${fragmentPath.value} in the '
-                        'input directory',
+                        'input directory; '
+                        '${_didYouMean(fragmentPath.value, [for (final templatePath in accessPathByTemplatePath.keys) '/$templatePath'])}'
+                        'paths start at the input directory',
                         fragmentPath.offset,
                       );
             final arguments = [
               for (final MapEntry(key: name, value: attribute)
                   in attributes.entries)
                 if (name != 'template')
-                  '$name: ${fragmentArgument(name, attribute)}, '
+                  '$name: '
+                      '${fragmentArgument(renderedTemplatePath, name, attribute)}, '
                       '${sourceMarker(attribute.offset)}',
             ];
             flushText();
@@ -859,7 +894,10 @@ CompiledTemplate compileTemplate(
               indentLevel--;
               emit('));', sourceOffset: offset);
             } else {
-              argumentNamesOfOpenFragments.add(attributes.keys.toSet());
+              openFragments.add((
+                templatePath: renderedTemplatePath,
+                passedPropNames: attributes.keys.toSet(),
+              ));
               openDirectives.add((
                 name: 'fragment',
                 indexVariable: null,
@@ -897,7 +935,12 @@ CompiledTemplate compileTemplate(
                 slotName.offset,
               );
             }
-            if (!argumentNamesOfOpenFragments.last.add(slotName.value)) {
+            requireDeclaredProp(
+              openFragments.last.templatePath,
+              slotName.value,
+              slotName.offset,
+            );
+            if (!openFragments.last.passedPropNames.add(slotName.value)) {
               fail(
                 'prop "${slotName.value}" is already passed to this '
                 '<x-fragment>; pass each prop once',
@@ -940,6 +983,74 @@ CompiledTemplate compileTemplate(
     body: body.toString(),
     renderedFragments: renderedFragments,
   );
+}
+
+/// The names of the props each template declares, by template path, for
+/// [compileTemplate]. Templates whose `<x-props>` is malformed are left out,
+/// so nothing is checked against them.
+Map<String, Set<String>> propNamesOfTemplates(
+  Map<String, String> templateSourceByPath,
+) => {
+  for (final MapEntry(key: templatePath, value: source)
+      in templateSourceByPath.entries)
+    templatePath: ?_declaredPropNames(source),
+};
+
+Set<String>? _declaredPropNames(String source) {
+  final start = _leadingWhitespacePattern.matchAsPrefix(source)!.end;
+  if (!source.startsWith('<x-props', start)) return {};
+  final tag = _openTagPattern.matchAsPrefix(source, start);
+  if (tag == null || tag[1] != 'props') return null;
+  return {for (final match in _attributePattern.allMatches(tag[2]!)) match[1]!};
+}
+
+/// `did you mean "x"? ` for the candidate closest to [name], or nothing
+/// when none is close enough to be a typo of it.
+String _didYouMean(String name, Iterable<String> candidates) {
+  String? closest;
+  // A typo changes a few characters, and never every one of them.
+  var closestDistance = min(max(1, name.length ~/ 3), name.length - 1) + 1;
+  for (final candidate in candidates.toSet()) {
+    final distance = _editDistance(name, candidate);
+    if (distance < closestDistance) {
+      closest = candidate;
+      closestDistance = distance;
+    }
+  }
+  return closest == null ? '' : 'did you mean "$closest"? ';
+}
+
+/// How many characters to insert, delete, replace or swap with their
+/// neighbor to turn [from] into [to].
+int _editDistance(String from, String to) {
+  final distances = [
+    for (var fromIndex = 0; fromIndex <= from.length; fromIndex++)
+      [
+        for (var toIndex = 0; toIndex <= to.length; toIndex++)
+          fromIndex == 0 ? toIndex : (toIndex == 0 ? fromIndex : 0),
+      ],
+  ];
+  for (var fromIndex = 1; fromIndex <= from.length; fromIndex++) {
+    for (var toIndex = 1; toIndex <= to.length; toIndex++) {
+      final isSame = from[fromIndex - 1] == to[toIndex - 1];
+      var distance = min(
+        min(
+              distances[fromIndex - 1][toIndex],
+              distances[fromIndex][toIndex - 1],
+            ) +
+            1,
+        distances[fromIndex - 1][toIndex - 1] + (isSame ? 0 : 1),
+      );
+      if (fromIndex > 1 &&
+          toIndex > 1 &&
+          from[fromIndex - 1] == to[toIndex - 2] &&
+          from[fromIndex - 2] == to[toIndex - 1]) {
+        distance = min(distance, distances[fromIndex - 2][toIndex - 2] + 1);
+      }
+      distances[fromIndex][toIndex] = distance;
+    }
+  }
+  return distances[from.length][to.length];
 }
 
 bool _isValidName(String name) =>

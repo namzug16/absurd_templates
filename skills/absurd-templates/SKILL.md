@@ -195,6 +195,9 @@ one directory are errors. Rename the file when `abs` reports a conflict.
 - **"... is not declared"**: the name is not a prop or loop variable in
   scope (the message lists the ones that are); fix the spelling or add it
   to `<x-props>`.
+- **"did you mean ..."**: a template path, prop or variable is misspelled
+  and the message names the closest one that exists; use it if it is what
+  you meant.
 - **"only accepts a variable or its fields"**: an expression was used; move
   the logic into Dart and pass the result as a prop.
 - **Type errors** (`The getter 'nmae' isn't defined`, `Conditions must have a
