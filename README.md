@@ -134,14 +134,15 @@ attribute. A template cannot render itself, directly or through others.
   ?isLoading:disabled
   ?hasTooltip:title="{{ tooltip }}"
   ?isActive:class="active"
+  ?!isActive:class="idle"
 >
 ```
 
 `?condition:attribute` renders the attribute, with its value and the
-whitespace before it, only when `condition` is `true`. The condition is a
-`bool` variable or field like `case`; compute negations such as `!isLoading`
-in Dart. The value works like any attribute value: plain text or quoted
-`{{ }}`.
+whitespace before it, only when `condition` is `true`; `?!condition:attribute`
+only when it is `false`. The condition is a `bool` variable or field like
+`case`. The value works like any attribute value: plain text or quoted
+`{{ }}`. Conditional attributes may share a name, like `class` above.
 
 `<x-if>` cannot go inside an HTML tag, because the template would be invalid
 HTML, and an attribute that is both plain and conditional, such as

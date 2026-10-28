@@ -107,6 +107,24 @@ $out.write('>Save</button>');
 ''');
   });
 
+  test('?!condition:attribute renders when false; both may share a name', () {
+    final compiled = compileTemplate(
+      '<x-props isOn="bool"></x-props>'
+          '<p ?isOn:class="on" ?!isOn:class="off">',
+      'a.html',
+    );
+    expect(compiled.body, r'''
+$out.write('<p');
+if (isOn) { // a.html:1:36
+  $out.write(' class="on"');
+}
+if (!isOn) { // a.html:1:54
+  $out.write(' class="off"');
+}
+$out.write('>');
+''');
+  });
+
   test('leaves a "<" that does not start a tag as text', () {
     final compiled = compileTemplate('<script>i<n</script>', 'a.html');
     expect(
@@ -290,8 +308,10 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
         9,
       ),
       '<button ?isLoading:disabled>': ('"isLoading" is not declared', 1, 10),
+      '<button ?!isLoading:disabled>': ('"isLoading" is not declared', 1, 11),
+      '<button ?!:disabled>': ('"?!:disabled" is not a conditional', 1, 9),
       '<x-props a="bool"></x-props><p class="b" ?a:CLASS="c">': (
-        '"CLASS" appears more than once in this tag',
+        '"CLASS" is also a plain attribute in this tag',
         1,
         42,
       ),

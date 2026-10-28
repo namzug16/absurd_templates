@@ -100,8 +100,9 @@ That is the whole language: six constructs.
   itself, directly or through other templates.
 
 - **`?condition:attribute`** on an HTML tag renders that attribute only
-  when the `bool` is `true`: `<button ?isLoading:disabled
-  ?hasTooltip:title="{{ tooltip }}">`. Never put `<x-if>` inside an HTML
+  when the `bool` is `true`, and `?!condition:attribute` only when it is
+  `false`: `<button ?isLoading:disabled ?hasTooltip:title="{{ tooltip }}"
+  ?isActive:class="on" ?!isActive:class="off">`. Never put `<x-if>` inside an HTML
   tag; it is an error. An attribute cannot be both plain and conditional
   (`class="btn" ?isActive:class="active"`); compute one value in Dart.
 

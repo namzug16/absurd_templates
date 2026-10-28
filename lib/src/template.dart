@@ -33,7 +33,7 @@ final _rawTextOpeningTagNamePattern = RegExp(
   r'^<(script|style)$',
   caseSensitive: false,
 );
-final _conditionalAttributeNamePattern = RegExp(r'^\?([^:]+):(.+)$');
+final _conditionalAttributeNamePattern = RegExp(r'^\?(!?)([^:!]+):(.+)$');
 final _attributePattern = RegExp(
   r'''([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?''',
 );
@@ -77,7 +77,7 @@ const _forUsage =
 const _ifUsage = '<x-if case="condition">';
 const _fragmentUsage = '<x-fragment _="/ui/label.html" text="Users" />';
 const _conditionalAttributeUsage =
-    '?isDisabled:disabled or ?isActive:class="active"';
+    '?isDisabled:disabled, ?isActive:class="active" or ?!isActive:class="idle"';
 const _nameRules =
     'use a Dart identifier that starts with a letter, contains only '
     'letters, digits and "_", and is not a reserved word';
@@ -353,12 +353,10 @@ CompiledTemplate compileTemplate(
       ))
         (match: match, offset: nameEnd + match.start),
     ];
-    final attributeNames = [
+    final plainAttributeNames = {
       for (final (:match, offset: _) in attributes)
-        (_conditionalAttributeNamePattern.firstMatch(match[1]!)?[2] ??
-                match[1]!)
-            .toLowerCase(),
-    ];
+        if (!match[1]!.startsWith('?')) match[1]!.toLowerCase(),
+    };
     var textStart = tagStart;
     for (final (:match, :offset) in attributes) {
       final rawName = match[1]!;
@@ -370,16 +368,17 @@ CompiledTemplate compileTemplate(
             '?condition:attribute, like $_conditionalAttributeUsage',
             offset,
           );
-      final condition = conditionalName[1]!;
-      final attributeName = conditionalName[2]!;
-      requireValuePath(condition, offset + '?'.length, '"?condition:"');
-      if (attributeNames
-              .where((name) => name == attributeName.toLowerCase())
-              .length >
-          1) {
+      final negation = conditionalName[1]!;
+      final condition = conditionalName[2]!;
+      final attributeName = conditionalName[3]!;
+      final conditionOffset = offset + '?'.length + negation.length;
+      requireValuePath(condition, conditionOffset, '"?condition:"');
+      // Conditional ones may share a name: each condition picks one value.
+      if (plainAttributeNames.contains(attributeName.toLowerCase())) {
         fail(
-          '"$attributeName" appears more than once in this tag and browsers '
-          'keep only the first; compute one value in Dart and pass it in',
+          '"$attributeName" is also a plain attribute in this tag and '
+          'browsers keep only the first; compute one value in Dart and pass '
+          'it in',
           offset,
         );
       }
@@ -397,7 +396,7 @@ CompiledTemplate compileTemplate(
       }
       writeTextWithInterpolations(textStart, whitespaceStart);
       flushText();
-      emit('if ($condition) {', sourceOffset: offset + '?'.length);
+      emit('if ($negation$condition) {', sourceOffset: conditionOffset);
       indentLevel++;
       pendingText.write(source.substring(whitespaceStart, offset));
       pendingText.write(attributeName);
