@@ -24,6 +24,15 @@ final _openTagPattern = RegExp(
 final _closeTagPattern = RegExp(r'</x-([a-z-]+)\s*>');
 final _htmlTagNamePattern = RegExp(r'<[a-zA-Z][^\s/>]*');
 final _directiveInsideTagPattern = RegExp(r'</?x-[a-z-]*');
+// Elements whose content is code, where a "<" never starts a tag.
+final _rawTextClosingTagPattern = RegExp(
+  r'</(script|style)\b',
+  caseSensitive: false,
+);
+final _rawTextOpeningTagNamePattern = RegExp(
+  r'^<(script|style)$',
+  caseSensitive: false,
+);
 final _conditionalAttributeNamePattern = RegExp(r'^\?([^:]+):(.+)$');
 final _attributePattern = RegExp(
   r'''([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?''',
@@ -98,6 +107,8 @@ CompiledTemplate compileTemplate(
   var parameters = '';
   var position = 0;
   var indentLevel = 0;
+  // Where the content of the current <script> or <style> ends.
+  var rawTextEnd = 0;
 
   ({int line, int column, String lineText}) locate(int offset) {
     final lineIndex = lineStartOffsets.lastIndexWhere((s) => s <= offset);
@@ -304,10 +315,7 @@ CompiledTemplate compileTemplate(
   }
 
   /// Returns where the HTML tag at [tagStart] ends, or null when the "<" does
-  /// not start a tag, like `i<n` in a script.
-  ///
-  /// shortcut: quotes are tracked anywhere in the tag, so odd script text can
-  /// hide a tag end; parse <script> and <style> as raw text if that bites.
+  /// not start a tag, like `a<b` in text.
   int? htmlTagEnd(int tagStart) {
     String? openQuote;
     for (var index = tagStart + 1; index < source.length; index++) {
@@ -429,13 +437,25 @@ CompiledTemplate compileTemplate(
         position = writeInterpolation(offset, source.length);
 
       case '<':
-        final tagEnd = htmlTagEnd(offset);
+        final tagEnd = offset < rawTextEnd ? null : htmlTagEnd(offset);
         if (tagEnd == null) {
           pendingText.write('<');
           position = offset + 1;
         } else {
           writeHtmlTag(offset, tagEnd);
           position = tagEnd;
+          final tagName = _htmlTagNamePattern.matchAsPrefix(
+            source,
+            offset,
+          )![0]!;
+          if (_rawTextOpeningTagNamePattern.hasMatch(tagName)) {
+            rawTextEnd =
+                _rawTextClosingTagPattern
+                    .allMatches(source, tagEnd)
+                    .firstOrNull
+                    ?.start ??
+                source.length;
+          }
         }
 
       case '</x-':

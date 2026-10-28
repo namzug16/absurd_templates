@@ -116,6 +116,17 @@ $out.write('>Save</button>');
     );
   });
 
+  test('never reads tags inside <script> and <style>', () {
+    const script =
+        '<script>if (i<n ?a:b>c) x = "\'";</script>'
+        '<STYLE>a<b{}</STYLE>';
+    final compiled = compileTemplate(script, 'a.html');
+    expect(
+      compiled.body,
+      '\$out.write(${"'"}${script.replaceAll("'", r"\'")}${"'"});\n',
+    );
+  });
+
   test('escapes Dart string syntax in literal HTML', () {
     final compiled = compileTemplate(r"<p>it's $5 \o/</p>", 'a.html');
     expect(compiled.parameters, '');
