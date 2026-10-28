@@ -75,7 +75,7 @@ usually say what to do next; read the whole message before changing code.
 </section>
 ```
 
-That is the whole language: five constructs.
+That is the whole language: six constructs.
 
 - **`<x-props>`** declares the fragment's parameters: attribute name =
   parameter name, attribute value = Dart type. It must be the first thing in
@@ -99,7 +99,13 @@ That is the whole language: five constructs.
   `null`. It is a void tag: end it with `/>`. A template cannot render
   itself, directly or through other templates.
 
-Values in `{{ }}`, `in`, `case` and `<x-fragment>` props can only be a
+- **`?condition:attribute`** on an HTML tag renders that attribute only
+  when the `bool` is `true`: `<button ?isLoading:disabled
+  ?hasTooltip:title="{{ tooltip }}">`. Never put `<x-if>` inside an HTML
+  tag; it is an error. An attribute cannot be both plain and conditional
+  (`class="btn" ?isActive:class="active"`); compute one value in Dart.
+
+Values in `{{ }}`, `in`, `case`, `?condition:` and `<x-fragment>` props can only be a
 variable in scope (a prop or an enclosing loop variable) followed by fields
 or getters: `title`, `user.name`, `pair.$1`, `items.isEmpty`. Nothing else is allowed: no
 operators, method calls, `!`, `??`, string interpolation or filters. This is

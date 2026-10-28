@@ -127,6 +127,27 @@ It is a void tag: end it with `/>`, never `</x-fragment>`. `abs check`
 reports unknown templates, missing or unknown props and wrong types at the
 attribute. A template cannot render itself, directly or through others.
 
+### Conditional attributes
+
+```html
+<button
+  ?isLoading:disabled
+  ?hasTooltip:title="{{ tooltip }}"
+  ?isActive:class="active"
+>
+```
+
+`?condition:attribute` renders the attribute, with its value and the
+whitespace before it, only when `condition` is `true`. The condition is a
+`bool` variable or field like `case`; compute negations such as `!isLoading`
+in Dart. The value works like any attribute value: plain text or quoted
+`{{ }}`.
+
+`<x-if>` cannot go inside an HTML tag, because the template would be invalid
+HTML, and an attribute that is both plain and conditional, such as
+`class="btn" ?isActive:class="active"`, is an error, because browsers keep
+only the first. Compute the combined value in Dart instead.
+
 ## Generated API
 
 `fragments/pages/user-page.html` becomes `Html.pages.userPage(...)`, returning
