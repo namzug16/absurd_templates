@@ -10,6 +10,9 @@ file**: each template becomes a typed function returning a `Fragment`, and
 `fragment.toHtml()` renders it. There is no runtime package and no template
 parsing at run time.
 
+`abs guide` prints this guide for the abs version it runs; installed as a
+skill, refresh it with `abs guide > path/to/SKILL.md` after updating abs.
+
 ## Find your way around
 
 Read `abs.yaml` in the project root first. It says where everything is:

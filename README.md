@@ -248,15 +248,25 @@ cd examples && abs && dart main.dart
 
 [`skills/absurd-templates`](skills/absurd-templates/SKILL.md) is an agent
 skill that teaches template syntax, the `abs check` loop and how to fix its
-errors. Copy the folder into a project's `.claude/skills/` (or
-`~/.claude/skills/` for every project) to use it with Claude Code; other
-agents can read `SKILL.md` as plain instructions.
+errors. `abs guide` prints it, matching the version of abs that runs it, a
+vendored copy included. Install it for Claude Code with:
+
+```sh
+mkdir -p .claude/skills/absurd-templates
+abs guide > .claude/skills/absurd-templates/SKILL.md
+```
+
+(or under `~/.claude/skills/` for every project). Run the same commands
+after updating abs to refresh it. Other agents can read the output as plain
+instructions, or be told to run `abs guide` (`dart run tool/abs.dart guide`
+when vendored).
 
 ## Developing abs
 
-After changing anything in `lib/src`, run
-`dart run tool/build_vendored_source.dart` to rebuild the copy that
-`abs vendor` writes (a test fails until you do), and bump `version` in
+After changing anything in `lib/src` or the skill, run
+`dart run tool/build_vendored_source.dart` to rebuild the guide that
+`abs guide` prints and the copy that `abs vendor` writes (a test fails until
+you do), and bump `version` in
 `pubspec.yaml` together with `absVersion` in `lib/src/cli.dart` before
 releasing, so vendored copies can tell they are out of date.
 

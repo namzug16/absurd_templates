@@ -460,6 +460,24 @@ error: The argument type 'Fragment' can't be assigned to the parameter type 'Str
     });
   });
 
+  test('guide prints the skill', () async {
+    final result = await _runAbs(projectDirectory, ['guide']);
+
+    expect(result.exitCode, 0);
+    expect(
+      result.stdout,
+      File('skills/absurd-templates/SKILL.md').readAsStringSync(),
+    );
+  });
+
+  test('lib/src/guide.dart is up to date', () {
+    expect(
+      File(guideFile).readAsStringSync(),
+      buildGuideFile(),
+      reason: 'run "dart run tool/build_vendored_source.dart"',
+    );
+  });
+
   test('lib/src/vendored_source.dart is up to date', () {
     expect(
       File(vendoredSourceFile).readAsStringSync(),

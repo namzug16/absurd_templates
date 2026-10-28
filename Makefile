@@ -16,7 +16,7 @@ install: vendored-source
 uninstall:
 	rm -f $(INSTALL_PATH)
 
-## vendored-source: regenerate lib/src/vendored_source.dart
+## vendored-source: regenerate lib/src/guide.dart and lib/src/vendored_source.dart
 # abs vendor embeds lib/src, so rebuild it before compiling or the binary ships a stale copy
 vendored-source:
 	dart run tool/build_vendored_source.dart

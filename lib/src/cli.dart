@@ -4,6 +4,7 @@ import 'dart:io';
 import 'check.dart';
 import 'diagnostic.dart';
 import 'generator.dart';
+import 'guide.dart';
 
 const _configFileName = 'abs.yaml';
 const _configKeys = {'input', 'output', 'class'};
@@ -31,6 +32,11 @@ Usage:
                              names). Checks every template when no file is
                              given. Exits with 1 when there are errors.
   abs init                   Create a commented abs.yaml in this directory.
+  abs guide                  Print the guide to templates, abs check and its
+                             errors, for people and coding agents. Install
+                             it as a Claude Code skill with:
+                             mkdir -p .claude/skills/absurd-templates &&
+                             abs guide > .claude/skills/absurd-templates/SKILL.md
 ${canVendor ? _vendorUsage : ''}  abs version                Print the version of abs.
   abs help                   Show this message.
 
@@ -46,6 +52,7 @@ const _initialConfig = '''
 #
 #   abs                    generate the Dart file below from the templates
 #   abs check [file.html]  check templates for errors without writing anything
+#   abs guide              print the template syntax guide, also for agents
 #   abs help               list every command
 
 # Required. Directory scanned recursively for .html templates. Each file
@@ -91,6 +98,8 @@ Future<void> runAbs(
         exitCode = await _check(_loadProject(), files);
       case ['init']:
         _init();
+      case ['guide']:
+        stdout.write(absGuide);
       case ['vendor', ...final vendorArguments]:
         if (vendor == null) {
           throw Diagnostic(
@@ -126,7 +135,7 @@ void _init() {
   configFile.writeAsStringSync(_initialConfig);
   stdout.writeln(
     'abs: created $_configFileName; put your .html templates in fragments/ '
-    'and run abs',
+    'and run abs. "abs guide" explains the template syntax',
   );
 }
 
