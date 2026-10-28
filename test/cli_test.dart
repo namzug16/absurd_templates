@@ -267,7 +267,14 @@ error: Undefined class 'Strng'.
       );
       expect(
         result.stdout,
-        endsWith('2 errors and 0 warnings in 2 templates\n'),
+        contains('''
+warning: prop "name" is never used; remove it from <x-props>, or use it
+  --> fragments/broken.html:2:9
+'''),
+      );
+      expect(
+        result.stdout,
+        endsWith('2 errors and 1 warning in 2 templates\n'),
       );
       expect(File('${projectDirectory.path}/out.dart').existsSync(), isFalse);
     });

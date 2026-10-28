@@ -246,6 +246,26 @@ if (!user.active) { // a.html:1:59
     );
   });
 
+  test('warns about props that are never used', () {
+    final compiled = compileTemplate(
+      '<x-props used="bool" unused="int" shadowed="List<int>" '
+          'xs="List<int>"></x-props>\n'
+          '<x-for in="xs" as="shadowed">{{ shadowed }}</x-for>'
+          '<b ?used:hidden></b>',
+      'a.html',
+    );
+    expect(compiled.warnings.map((warning) => warning.format()), [
+      'warning: prop "unused" is never used; remove it from <x-props>, or '
+          'use it\n'
+          '  --> a.html:1:30\n'
+          '  |\n'
+          '1 | <x-props used="bool" unused="int" shadowed="List<int>" '
+          'xs="List<int>"></x-props>\n'
+          '  |                              ^',
+      startsWith('warning: prop "shadowed" is never used'),
+    ]);
+  });
+
   test('errors show the path, line, column and source line', () {
     expect(
       () => compileTemplate(

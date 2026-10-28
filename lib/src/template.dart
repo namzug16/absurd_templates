@@ -65,10 +65,13 @@ final _trailingIndentationPattern = RegExp(r'[ \t]*$');
 ///
 /// [renderedFragments] lists every `<x-fragment>` in the template, so the
 /// generator can reject templates that render each other in a cycle.
+///
+/// [warnings] point at props the template never uses.
 typedef CompiledTemplate = ({
   String parameters,
   String body,
   List<RenderedFragment> renderedFragments,
+  List<Diagnostic> warnings,
 });
 
 /// A `<x-fragment>` tag: the template it renders, relative to the input
@@ -132,6 +135,8 @@ CompiledTemplate compileTemplate(
       <({String templatePath, Set<String> passedPropNames})>[];
   // Props, then the variables of each enclosing <x-for>, innermost last.
   final variablesInScope = <String>[];
+  final propOffsetByName = <String, int>{};
+  final usedPropNames = <String>{};
   final lineStartOffsets = [0, for (final m in '\n'.allMatches(source)) m.end];
   var parameters = '';
   var position = 0;
@@ -154,16 +159,23 @@ CompiledTemplate compileTemplate(
     );
   }
 
-  Never fail(String message, int offset) {
+  Diagnostic diagnosticAt(
+    String message,
+    int offset, {
+    String severity = 'error',
+  }) {
     final location = locate(offset);
-    throw Diagnostic(
+    return Diagnostic(
       message,
+      severity: severity,
       path: templatePath,
       line: location.line,
       column: location.column,
       lineText: location.lineText,
     );
   }
+
+  Never fail(String message, int offset) => throw diagnosticAt(message, offset);
 
   String sourceMarker(int offset) {
     final location = locate(offset);
@@ -219,6 +231,10 @@ CompiledTemplate compileTemplate(
         '${variablesInScope.isEmpty ? 'Nothing is declared here' : 'Declared here: ${variablesInScope.toSet().join(', ')}'}',
         offset,
       );
+    }
+    // A loop variable may shadow a prop of the same name.
+    if (variablesInScope.lastIndexOf(variable) < propOffsetByName.length) {
+      usedPropNames.add(variable);
     }
   }
 
@@ -745,6 +761,11 @@ CompiledTemplate compileTemplate(
                   ),
             ];
             variablesInScope.addAll(attributes.keys);
+            propOffsetByName.addAll({
+              for (final MapEntry(key: name, value: attribute)
+                  in attributes.entries)
+                name: attribute.offset,
+            });
             if (declarations.isNotEmpty) {
               parameters = '{\n${declarations.join('\n')}\n  }';
             }
@@ -982,6 +1003,15 @@ CompiledTemplate compileTemplate(
     parameters: parameters,
     body: body.toString(),
     renderedFragments: renderedFragments,
+    warnings: [
+      for (final MapEntry(key: name, value: offset) in propOffsetByName.entries)
+        if (!usedPropNames.contains(name))
+          diagnosticAt(
+            'prop "$name" is never used; remove it from <x-props>, or use it',
+            offset,
+            severity: 'warning',
+          ),
+    ],
   );
 }
 

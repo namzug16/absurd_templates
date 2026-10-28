@@ -195,6 +195,9 @@ one directory are errors. Rename the file when `abs` reports a conflict.
 - **"... is not declared"**: the name is not a prop or loop variable in
   scope (the message lists the ones that are); fix the spelling or add it
   to `<x-props>`.
+- **"prop ... is never used"** (a warning): remove the prop from
+  `<x-props>` and from the Dart code that passes it, unless the template
+  should use it.
 - **"did you mean ..."**: a template path, prop or variable is misspelled
   and the message names the closest one that exists; use it if it is what
   you meant.

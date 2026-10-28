@@ -33,6 +33,7 @@ Future<List<Diagnostic>> checkTemplates({
   // the checked templates would call functions missing from the library.
   final propNamesByTemplatePath = propNamesOfTemplates(templateSourceByPath);
   final templatePathsToCompile = [...checkedTemplatePaths];
+  final checkedTemplateCount = templatePathsToCompile.length;
   final renderedTemplatePathsByCompilablePath = <String, List<String>>{};
   for (var index = 0; index < templatePathsToCompile.length; index++) {
     final templatePath = templatePathsToCompile[index];
@@ -43,6 +44,7 @@ Future<List<Diagnostic>> checkTemplates({
         accessPathByTemplatePath: accessPathByTemplatePath,
         propNamesByTemplatePath: propNamesByTemplatePath,
       );
+      if (index < checkedTemplateCount) diagnostics.addAll(compiled.warnings);
       final renderedTemplatePaths = [
         for (final rendered in compiled.renderedFragments)
           rendered.templatePath,

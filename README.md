@@ -56,7 +56,9 @@ abs check fragments/pages/users.html  # only these files
 
 `abs check` writes nothing. It reports syntax errors, naming conflicts and
 Dart errors such as unknown types, undefined names and typos in fields, all
-mapped back to the template. It exits with 1 when there are errors:
+mapped back to the template, and suggests the closest name for a misspelled
+template, prop or variable. It warns about props a template never uses. It
+exits with 1 when there are errors, not warnings:
 
 ```text
 error: The getter 'nmae' isn't defined for the type '({bool active, String name})'.
