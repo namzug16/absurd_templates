@@ -135,6 +135,22 @@ is already an attribute of this tag and browsers keep only the first; compute on
     );
   });
 
+  test('documents each function with the template it renders', () {
+    final library = generateDartLibrary(
+      templateSourceByPath: {'pages/user-page.html': ''},
+      className: 'Html',
+      templateDirectory: 'fragments',
+    );
+    expect(
+      library,
+      contains(
+        '  /// Renders `fragments/pages/user-page.html`; edit that template, '
+        'then run abs.\n'
+        '  Fragment userPage() =>',
+      ),
+    );
+  });
+
   test('conflicts name both paths and the Dart access path', () {
     expect(
       () => generateDartLibrary(

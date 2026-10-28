@@ -2,6 +2,7 @@
 // ignore_for_file: type=lint, unused_element
 
 abstract final class Html {
+  /// Renders `fragments/footer.html`; edit that template, then run abs.
   static Fragment footer() =>
       Fragment._(($out) {
     $out.write('<footer>Made with Absurd Templates</footer>\n');
@@ -17,6 +18,7 @@ abstract final class Html {
 final class _Html$layout {
   const _Html$layout();
 
+  /// Renders `fragments/layout/primary.html`; edit that template, then run abs.
   Fragment primary({
     required String title, // fragments/layout/primary.html:2:10
     required Fragment content, // fragments/layout/primary.html:3:12
@@ -33,6 +35,7 @@ final class _Html$layout {
 final class _Html$pages {
   const _Html$pages();
 
+  /// Renders `fragments/pages/user.html`; edit that template, then run abs.
   Fragment user({
     required String name, // fragments/pages/user.html:2:9
     required String surname, // fragments/pages/user.html:3:12
@@ -50,6 +53,7 @@ final class _Html$pages {
     $out.write('</article>\n');
   });
 
+  /// Renders `fragments/pages/users.html`; edit that template, then run abs.
   Fragment users({
     required String title, // fragments/pages/users.html:2:10
     required List<({String name, bool active})> users, // fragments/pages/users.html:3:10
@@ -84,6 +88,7 @@ final class _Html$pages {
 final class _Html$pages$admin {
   const _Html$pages$admin();
 
+  /// Renders `fragments/pages/admin/dashboard.html`; edit that template, then run abs.
   Fragment dashboard({
     required int visits, // fragments/pages/admin/dashboard.html:1:18
   }) =>
@@ -97,6 +102,7 @@ final class _Html$pages$admin {
 final class _Html$ui {
   const _Html$ui();
 
+  /// Renders `fragments/ui/user-item.html`; edit that template, then run abs.
   Fragment userItem({
     required int number, // fragments/ui/user-item.html:1:18
     required String name, // fragments/ui/user-item.html:1:29

@@ -168,7 +168,7 @@ String generateDartLibrary({
     // The helpers go unused when no template writes a value.
     ..writeln('// ignore_for_file: type=lint, unused_element')
     ..writeln();
-  _writeNamespace(output, root, isRoot: true);
+  _writeNamespace(output, root, templateDirectory, isRoot: true);
   output.write(_fragmentSource);
   return output.toString();
 }
@@ -333,7 +333,8 @@ String _memberName(String name, String sourcePath) {
 
 void _writeNamespace(
   StringBuffer output,
-  _Namespace namespace, {
+  _Namespace namespace,
+  String templateDirectory, {
   required bool isRoot,
 }) {
   final memberPrefix = isRoot ? 'static ' : '';
@@ -341,7 +342,9 @@ void _writeNamespace(
     if (!isRoot) '  const ${namespace.className}();',
     for (final MapEntry(key: methodName, value: template)
         in namespace.compiledTemplateByMethodName.entries)
-      '  ${memberPrefix}Fragment $methodName(${template.parameters}) =>\n'
+      '  /// Renders `${displayTemplatePath(templateDirectory, namespace.templatePathByMethodName[methodName]!)}`; '
+          'edit that template, then run abs.\n'
+          '  ${memberPrefix}Fragment $methodName(${template.parameters}) =>\n'
           '      Fragment._((\$out) {\n'
           '    ${template.body.trimRight().replaceAll('\n', '\n    ')}\n'
           '  });',
@@ -360,6 +363,6 @@ void _writeNamespace(
     ..writeln();
 
   for (final child in namespace.namespaceByGetterName.values) {
-    _writeNamespace(output, child, isRoot: false);
+    _writeNamespace(output, child, templateDirectory, isRoot: false);
   }
 }

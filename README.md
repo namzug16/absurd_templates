@@ -212,7 +212,8 @@ Code in `<script>` and `<style>` keeps its own `...`.
 ## Generated API
 
 `fragments/pages/user-page.html` becomes `Html.pages.userPage(...)`, returning
-a `Fragment`. Call `.toHtml()` to render. Name collisions (after camelCase
+a `Fragment`. Call `.toHtml()` to render. Each function's doc comment names
+its template, so hovering a call in your editor shows where to edit it. Name collisions (after camelCase
 conversion) and file/directory clashes are errors.
 
 ```dart
