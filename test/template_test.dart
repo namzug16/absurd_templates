@@ -85,6 +85,37 @@ $out.write('</ul>');
 ''');
   });
 
+  test('wraps ?condition:attribute in an if, whitespace included', () {
+    final compiled = compileTemplate(
+      '<x-props isLoading="bool" hasTooltip="bool" tooltip="String">'
+          '</x-props>\n'
+          '<button type="button"\n  ?isLoading:disabled\n'
+          '  ?hasTooltip:title="{{ tooltip }}">Save</button>',
+      'a.html',
+    );
+    expect(compiled.body, r'''
+$out.write('<button type="button"');
+if (isLoading) { // a.html:3:4
+  $out.write('\n  disabled');
+}
+if (hasTooltip) { // a.html:4:4
+  $out.write('\n  title="');
+  _$write($out, tooltip); // a.html:4:25
+  $out.write('"');
+}
+$out.write('>Save</button>');
+''');
+  });
+
+  test('leaves a "<" that does not start a tag as text', () {
+    final compiled = compileTemplate('<script>i<n</script>', 'a.html');
+    expect(
+      compiled.body,
+      r"$out.write('<script>i<n</script>');"
+      '\n',
+    );
+  });
+
   test('escapes Dart string syntax in literal HTML', () {
     final compiled = compileTemplate(r"<p>it's $5 \o/</p>", 'a.html');
     expect(compiled.parameters, '');
@@ -234,6 +265,27 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
       ),
       '<x-fragment _="/ui/label.html" user-name="Ada" />': (
         '"user-name" is not a valid prop name',
+        1,
+        43,
+      ),
+      '<x-props a="bool"></x-props><button <x-if case="a">disabled</x-if>>': (
+        '<x-if> cannot go inside an HTML tag',
+        1,
+        37,
+      ),
+      '<button ?disabled>': (
+        '"?disabled" is not a conditional attribute',
+        1,
+        9,
+      ),
+      '<button ?isLoading:disabled>': ('"isLoading" is not declared', 1, 10),
+      '<x-props a="bool"></x-props><p class="b" ?a:CLASS="c">': (
+        '"CLASS" appears more than once in this tag',
+        1,
+        42,
+      ),
+      '<x-props a="bool" t="String"></x-props><p ?a:title={{ t }}>': (
+        'quote {{ }} values, like ?a:title="{{ title }}"',
         1,
         43,
       ),

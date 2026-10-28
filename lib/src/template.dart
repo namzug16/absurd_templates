@@ -14,13 +14,17 @@ final _identifierPattern = RegExp(r'^[a-zA-Z][a-zA-Z0-9_]*$');
 final _valuePathPattern = RegExp(
   r'^[a-zA-Z][a-zA-Z0-9_]*(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|\$[0-9]+))*$',
 );
-final _directiveStartPattern = RegExp(r'<!--|\{\{|</?x-');
+// A lone "<" starts an HTML tag, which may hold ?condition:attribute.
+final _directiveStartPattern = RegExp(r'<!--|\{\{|</?x-|<(?=[a-zA-Z])');
 const _attributeSource =
     r'''[^\s=/>"']+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?''';
 final _openTagPattern = RegExp(
   '<x-([a-z-]+)((?:\\s+$_attributeSource)*)\\s*(/?)>',
 );
 final _closeTagPattern = RegExp(r'</x-([a-z-]+)\s*>');
+final _htmlTagNamePattern = RegExp(r'<[a-zA-Z][^\s/>]*');
+final _directiveInsideTagPattern = RegExp(r'</?x-[a-z-]*');
+final _conditionalAttributeNamePattern = RegExp(r'^\?([^:]+):(.+)$');
 final _attributePattern = RegExp(
   r'''([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?''',
 );
@@ -63,6 +67,8 @@ const _forUsage =
     '<x-for in="items" as="item" indexed="1" index-as="position">';
 const _ifUsage = '<x-if case="condition">';
 const _fragmentUsage = '<x-fragment _="/ui/label.html" text="Users" />';
+const _conditionalAttributeUsage =
+    '?isDisabled:disabled or ?isActive:class="active"';
 const _nameRules =
     'use a Dart identifier that starts with a letter, contains only '
     'letters, digits and "_", and is not a reserved word';
@@ -266,6 +272,139 @@ CompiledTemplate compileTemplate(
     return _dartStringLiteral(value);
   }
 
+  /// Compiles the `{{ }}` at [offset], which must close before [limit],
+  /// and returns where it ends.
+  int writeInterpolation(int offset, int limit) {
+    final expressionStart = offset + '{{'.length;
+    final end = source.indexOf('}}', expressionStart);
+    if (end == -1 || end + '}}'.length > limit) {
+      fail('"{{" is never closed with "}}"', offset);
+    }
+    final expression = source.substring(expressionStart, end).trim();
+    if (expression.isEmpty) {
+      fail('"{{ }}" is empty; put a variable inside, e.g. {{ title }}', offset);
+    }
+    final expressionOffset = source.indexOf(expression, expressionStart);
+    requireValuePath(expression, expressionOffset, '"{{ }}"');
+    flushText();
+    emit('_\$write(\$out, $expression);', sourceOffset: expressionOffset);
+    return end + '}}'.length;
+  }
+
+  /// Writes the source from [start] to [end] as text, compiling its `{{ }}`.
+  void writeTextWithInterpolations(int start, int end) {
+    var position = start;
+    while (true) {
+      final interpolationStart = source.indexOf('{{', position);
+      if (interpolationStart == -1 || interpolationStart >= end) break;
+      pendingText.write(source.substring(position, interpolationStart));
+      position = writeInterpolation(interpolationStart, end);
+    }
+    pendingText.write(source.substring(position, end));
+  }
+
+  /// Returns where the HTML tag at [tagStart] ends, or null when the "<" does
+  /// not start a tag, like `i<n` in a script.
+  ///
+  /// shortcut: quotes are tracked anywhere in the tag, so odd script text can
+  /// hide a tag end; parse <script> and <style> as raw text if that bites.
+  int? htmlTagEnd(int tagStart) {
+    String? openQuote;
+    for (var index = tagStart + 1; index < source.length; index++) {
+      final character = source[index];
+      if (openQuote != null) {
+        if (character == openQuote) openQuote = null;
+      } else if (character == '"' || character == "'") {
+        openQuote = character;
+      } else if (character == '>') {
+        return index + 1;
+      } else if (character == '<') {
+        if (_directiveInsideTagPattern.matchAsPrefix(source, index)
+            case final directive?) {
+          fail(
+            '${directive[0]}> cannot go inside an HTML tag, it would make '
+            'invalid HTML; make the attribute conditional instead, like '
+            '$_conditionalAttributeUsage',
+            index,
+          );
+        }
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /// Writes the HTML tag from [tagStart] to [tagEnd], wrapping each
+  /// `?condition:attribute` in an `if`. The whitespace before it goes inside
+  /// the `if`, so a false condition leaves no gap.
+  void writeHtmlTag(int tagStart, int tagEnd) {
+    final nameEnd = _htmlTagNamePattern.matchAsPrefix(source, tagStart)!.end;
+    final attributes = [
+      for (final match in _attributePattern.allMatches(
+        source.substring(nameEnd, tagEnd - '>'.length),
+      ))
+        (match: match, offset: nameEnd + match.start),
+    ];
+    final attributeNames = [
+      for (final (:match, offset: _) in attributes)
+        (_conditionalAttributeNamePattern.firstMatch(match[1]!)?[2] ??
+                match[1]!)
+            .toLowerCase(),
+    ];
+    var textStart = tagStart;
+    for (final (:match, :offset) in attributes) {
+      final rawName = match[1]!;
+      if (!rawName.startsWith('?')) continue;
+      final conditionalName =
+          _conditionalAttributeNamePattern.firstMatch(rawName) ??
+          fail(
+            '"$rawName" is not a conditional attribute; write it as '
+            '?condition:attribute, like $_conditionalAttributeUsage',
+            offset,
+          );
+      final condition = conditionalName[1]!;
+      final attributeName = conditionalName[2]!;
+      requireValuePath(condition, offset + '?'.length, '"?condition:"');
+      if (attributeNames
+              .where((name) => name == attributeName.toLowerCase())
+              .length >
+          1) {
+        fail(
+          '"$attributeName" appears more than once in this tag and browsers '
+          'keep only the first; compute one value in Dart and pass it in',
+          offset,
+        );
+      }
+      // Unquoted, the spaces in {{ name }} would split the value.
+      if (match[4]?.startsWith('{{') ?? false) {
+        fail(
+          'quote {{ }} values, like $rawName="{{ $attributeName }}"',
+          offset,
+        );
+      }
+      var whitespaceStart = offset;
+      while (whitespaceStart > textStart &&
+          source[whitespaceStart - 1].trim().isEmpty) {
+        whitespaceStart--;
+      }
+      writeTextWithInterpolations(textStart, whitespaceStart);
+      flushText();
+      emit('if ($condition) {', sourceOffset: offset + '?'.length);
+      indentLevel++;
+      pendingText.write(source.substring(whitespaceStart, offset));
+      pendingText.write(attributeName);
+      writeTextWithInterpolations(
+        offset + rawName.length,
+        offset + match.end - match.start,
+      );
+      flushText();
+      indentLevel--;
+      emit('}');
+      textStart = offset + match.end - match.start;
+    }
+    writeTextWithInterpolations(textStart, tagEnd);
+  }
+
   while (true) {
     final match = _directiveStartPattern
         .allMatches(source, position)
@@ -287,20 +426,17 @@ CompiledTemplate compileTemplate(
         position = end + 3;
 
       case '{{':
-        final end = source.indexOf('}}', match.end);
-        if (end == -1) fail('"{{" is never closed with "}}"', offset);
-        final expression = source.substring(match.end, end).trim();
-        if (expression.isEmpty) {
-          fail(
-            '"{{ }}" is empty; put a variable inside, e.g. {{ title }}',
-            offset,
-          );
+        position = writeInterpolation(offset, source.length);
+
+      case '<':
+        final tagEnd = htmlTagEnd(offset);
+        if (tagEnd == null) {
+          pendingText.write('<');
+          position = offset + 1;
+        } else {
+          writeHtmlTag(offset, tagEnd);
+          position = tagEnd;
         }
-        final expressionOffset = source.indexOf(expression, match.end);
-        requireValuePath(expression, expressionOffset, '"{{ }}"');
-        flushText();
-        emit('_\$write(\$out, $expression);', sourceOffset: expressionOffset);
-        position = end + 2;
 
       case '</x-':
         final tag =
