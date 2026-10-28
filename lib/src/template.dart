@@ -553,6 +553,16 @@ CompiledTemplate compileTemplate(
         position = end + 3;
 
       case '{{':
+        // HTML escaping does not make a value safe as code.
+        if (offset < rawTextEnd) {
+          fail(
+            '"{{ }}" cannot go inside <script> or <style>, where HTML '
+            'escaping does not make values safe; put the value in a quoted '
+            'data- attribute, like <div data-name="{{ name }}">, and read it '
+            'from the script',
+            offset,
+          );
+        }
         position = writeInterpolation(offset, source.length);
 
       case '<':

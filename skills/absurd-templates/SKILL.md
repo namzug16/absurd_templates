@@ -139,6 +139,9 @@ Other rules:
 - Escaping makes text safe in HTML and in quoted attributes, but not as a
   URL: `href="{{ url }}"` with `javascript:...` still runs. Validate URLs for
   `href`, `src` and `action` in Dart before passing them in.
+- `{{ }}` is an error inside `<script>` and `<style>`: HTML escaping does not
+  make values safe as code. Put the value in a quoted `data-` attribute,
+  like `<div data-name="{{ name }}">`, and read it from the script.
 
 ## Working without missing features
 

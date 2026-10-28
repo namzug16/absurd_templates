@@ -504,6 +504,16 @@ error: </x-for> found while <x-if> from line 3 is still open; close it with </x-
       '<x-if case="a>': ('malformed <x-...> tag', 1, 1),
       'a\n  {{ name': ('"{{" is never closed with "}}"', 2, 3),
       '{{ }}': ('"{{ }}" is empty', 1, 1),
+      '<x-props a="int"></x-props><script>var n = {{ a }};</script>': (
+        '"{{ }}" cannot go inside <script> or <style>',
+        1,
+        44,
+      ),
+      '<x-props a="int"></x-props><STYLE>p { order: {{ a }} }</STYLE>': (
+        '"{{ }}" cannot go inside <script> or <style>',
+        1,
+        46,
+      ),
       '<!-- comment': ('"<!--" is never closed', 1, 1),
     };
     for (final MapEntry(key: source, value: (message, line, column))
