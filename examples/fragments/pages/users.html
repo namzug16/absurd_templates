@@ -1,7 +1,6 @@
 <x-props
   title="String"
   users="List<({String name, bool active})>"
-  footer="Fragment?"
 ></x-props>
 
 <section>
@@ -13,5 +12,5 @@
       </x-if>
     </x-for>
   </ul>
-  {{ footer }}
+  <x-fragment template="/footer.html" />
 </section>

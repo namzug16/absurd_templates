@@ -42,43 +42,48 @@ final class _Html$pages {
     required bool active, // fragments/pages/user.html:4:11
   }) =>
       Fragment._(($out) {
-    $out.write('<article>\n  <h1>');
-    _$write($out, name); // fragments/pages/user.html:8:10
-    $out.write(' ');
-    _$write($out, surname); // fragments/pages/user.html:8:21
-    $out.write('</h1>\n');
-    if (active) { // fragments/pages/user.html:9:15
-      $out.write('    <p>Active user</p>\n');
-    }
-    $out.write('</article>\n');
+    _$write($out, Html.layout.primary( // fragments/pages/user.html:7:1
+      title: 'User profile', // fragments/pages/user.html:7:52
+      content: Fragment._(($out) { // fragments/pages/user.html:8:17
+        $out.write('    <article>\n      <h1>');
+        _$write($out, name); // fragments/pages/user.html:10:14
+        $out.write(' ');
+        _$write($out, surname); // fragments/pages/user.html:10:25
+        $out.write('</h1>\n');
+        if (active) { // fragments/pages/user.html:11:19
+          $out.write('        <p>Active user</p>\n');
+        }
+        $out.write('    </article>\n');
+      }),
+    )); // fragments/pages/user.html:7:1
   });
 
   /// Renders `fragments/pages/users.html`; edit that template, then run abs.
   Fragment users({
     required String title, // fragments/pages/users.html:2:10
     required List<({String name, bool active})> users, // fragments/pages/users.html:3:10
-    Fragment? footer, // fragments/pages/users.html:4:11
   }) =>
       Fragment._(($out) {
     $out.write('<section>\n  <h1>');
-    _$write($out, title); // fragments/pages/users.html:8:10
+    _$write($out, title); // fragments/pages/users.html:7:10
     $out.write('</h1>\n  <ul>\n');
     {
-      var number = 1; // fragments/pages/users.html:10:5
-      for (final user in (users)) { // fragments/pages/users.html:10:16
-        if (user.active) { // fragments/pages/users.html:11:19
+      var number = 1; // fragments/pages/users.html:9:5
+      for (final user in (users)) { // fragments/pages/users.html:9:16
+        if (user.active) { // fragments/pages/users.html:10:19
           $out.write('        ');
-          _$write($out, Html.ui.userItem( // fragments/pages/users.html:12:9
-            number: number, // fragments/pages/users.html:12:59
-            name: user.name, // fragments/pages/users.html:12:79
-          )); // fragments/pages/users.html:12:9
+          _$write($out, Html.ui.userItem( // fragments/pages/users.html:11:9
+            number: number, // fragments/pages/users.html:11:59
+            name: user.name, // fragments/pages/users.html:11:79
+          )); // fragments/pages/users.html:11:9
           $out.write('\n');
         }
-        number++; // fragments/pages/users.html:10:5
+        number++; // fragments/pages/users.html:9:5
       }
     }
     $out.write('  </ul>\n  ');
-    _$write($out, footer); // fragments/pages/users.html:16:6
+    _$write($out, Html.footer( // fragments/pages/users.html:15:3
+    )); // fragments/pages/users.html:15:3
     $out.write('\n</section>\n');
   });
 

@@ -4,9 +4,13 @@
   active="bool"
 ></x-props>
 
-<article>
-  <h1>{{ name }} {{ surname }}</h1>
-  <x-if case="active">
-    <p>Active user</p>
-  </x-if>
-</article>
+<x-fragment template="/layout/primary.html" title="User profile">
+  <x-slot name="content">
+    <article>
+      <h1>{{ name }} {{ surname }}</h1>
+      <x-if case="active">
+        <p>Active user</p>
+      </x-if>
+    </article>
+  </x-slot>
+</x-fragment>

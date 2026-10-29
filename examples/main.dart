@@ -8,13 +8,9 @@ void main() {
       (name: 'Grace', active: false),
       (name: '<script>alert(1)</script>', active: true),
     ],
-    footer: Html.footer(),
   );
 
-  final page = Html.layout.primary(
-    title: 'User profile',
-    content: Html.pages.user(name: 'Ada', surname: 'Lovelace', active: true),
-  );
+  final page = Html.pages.user(name: 'Ada', surname: 'Lovelace', active: true);
 
   print(users.toHtml());
   print(page.toHtml());
