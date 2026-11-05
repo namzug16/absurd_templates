@@ -1,7 +1,7 @@
 PREFIX ?= $(HOME)/.local
 INSTALL_PATH := $(PREFIX)/bin/abs
 
-.PHONY: help install uninstall vendored-source test analyze format check example
+.PHONY: help install uninstall vendored-source test analyze format check example publish
 
 ## help: list the available commands
 help:
@@ -42,3 +42,7 @@ check:
 ## example: regenerate example/generated/html.dart
 example:
 	cd example && dart run ../bin/abs.dart
+
+## publish: rebuild the vendored source, run the checks and publish to pub.dev
+publish: vendored-source check
+	dart pub publish

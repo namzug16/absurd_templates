@@ -48,11 +48,25 @@ Dart passes only data; the page picks its own layout.
 
 ## Install
 
+From [pub.dev](https://pub.dev/packages/abs):
+
 ```sh
-make install               # native binary at ~/.local/bin/abs, fastest startup
-make install PREFIX=/usr/local  # or anywhere else
-# or, without make:
-dart pub global activate --source path .
+dart pub global activate abs   # abs on your PATH, for every project
+```
+
+or per project, pinned in `pubspec.yaml`:
+
+```sh
+dart pub add dev:abs
+dart run abs                   # works exactly like abs: check, init, help...
+```
+
+From a clone of this repository, as a native binary with the fastest
+startup:
+
+```sh
+make install                   # ~/.local/bin/abs
+make install PREFIX=/usr/local # or anywhere else
 ```
 
 `make uninstall` removes it again; `make` lists the other commands.
@@ -294,7 +308,8 @@ After changing anything in `lib/src` or the skill, run
 `abs guide` prints and the copy that `abs vendor` writes (a test fails until
 you do), and bump `version` in
 `pubspec.yaml` together with `absVersion` in `lib/src/cli.dart` before
-releasing, so vendored copies can tell they are out of date.
+releasing, so vendored copies can tell they are out of date. `make publish`
+rebuilds them, runs `make check` and publishes the package to pub.dev.
 
 ## Benchmark
 
@@ -316,3 +331,7 @@ Running `abs vendor` again with a newer abs updates the copy. It never
 overwrites a file it did not write, a copy edited by hand, or a copy from a
 newer abs. `abs version` (or `dart run tool/abs.dart version`) prints the
 version.
+
+## License
+
+[MIT](LICENSE)
