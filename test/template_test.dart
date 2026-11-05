@@ -1,5 +1,5 @@
-import 'package:absurd_templates/src/diagnostic.dart';
-import 'package:absurd_templates/src/template.dart';
+import 'package:abs/src/diagnostic.dart';
+import 'package:abs/src/template.dart';
 import 'package:test/test.dart';
 
 void main() {

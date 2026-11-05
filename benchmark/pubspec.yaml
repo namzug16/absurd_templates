@@ -6,7 +6,7 @@ environment:
   sdk: ^3.13.0
 
 dependencies:
-  absurd_templates:
+  abs:
     path: ..
   jinja: ^0.7.2
   mustache_template: ^2.0.6

@@ -262,12 +262,12 @@ lib/generated/html.dart linguist-generated=true
 
 ## Example
 
-[`examples/`](examples) has fragments, their generated
-[`html.dart`](examples/generated/html.dart) and a [`main.dart`](examples/main.dart)
+[`example/`](example) has fragments, their generated
+[`html.dart`](example/generated/html.dart) and a [`main.dart`](example/main.dart)
 that renders them:
 
 ```sh
-cd examples && abs && dart main.dart
+cd example && abs && dart main.dart
 ```
 
 ## Coding agents

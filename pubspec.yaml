@@ -1,7 +1,7 @@
-name: absurd_templates
+name: abs
 description: Absurd Templates - HTML-first templates compiled into one self-contained Dart file.
 version: 0.1.0
-publish_to: none
+repository: https://github.com/namzug16/absurd_templates
 
 environment:
   sdk: ^3.9.0

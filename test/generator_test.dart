@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:absurd_templates/absurd_templates.dart';
+import 'package:abs/abs.dart';
 import 'package:test/test.dart';
 
 const _specTemplates = {

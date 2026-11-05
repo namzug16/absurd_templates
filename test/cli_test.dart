@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:absurd_templates/src/cli.dart';
-import 'package:absurd_templates/src/vendor.dart';
+import 'package:abs/src/cli.dart';
+import 'package:abs/src/vendor.dart';
 import 'package:test/test.dart';
 
 import '../tool/build_vendored_source.dart';
@@ -209,17 +209,17 @@ error: "output" is required (see "abs help")
 ''');
   });
 
-  test('committed examples/generated/html.dart is up to date', () async {
-    final generatedFile = File('examples/generated/html.dart');
+  test('committed example/generated/html.dart is up to date', () async {
+    final generatedFile = File('example/generated/html.dart');
     final committedLibrary = generatedFile.readAsStringSync();
 
-    final result = await _runAbs(Directory('examples'));
+    final result = await _runAbs(Directory('example'));
 
     expect(result.exitCode, 0);
     expect(
       generatedFile.readAsStringSync(),
       committedLibrary,
-      reason: 'run abs in examples/ and commit the result',
+      reason: 'run abs in example/ and commit the result',
     );
   });
 

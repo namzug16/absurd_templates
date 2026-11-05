@@ -55,7 +55,7 @@ const absGuide =
     "another file) whose first line reads `vendored by \"abs vendor\"`. Then every\n"
     "`abs ...` command in this skill and in error messages means\n"
     "`dart run tool/abs.dart ...`, with the same arguments. Otherwise, if `abs`\n"
-    "is not on the PATH, try `dart run absurd_templates:abs`; if nothing works,\n"
+    "is not on the PATH, try `dart run abs`; if nothing works,\n"
     "ask the user how they run it, or offer to vendor it (see below).\n"
     "\n"
     "`abs check` exits with 1 on errors, so it fits scripts and CI. Its messages\n"

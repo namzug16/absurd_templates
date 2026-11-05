@@ -22,7 +22,7 @@ rendering is measured. abs has nothing to parse at run time.
 ```sh
 cd benchmark
 dart pub get
-dart run absurd_templates:abs        # regenerate lib/absurd.dart after changing abs
+dart run abs        # regenerate lib/absurd.dart after changing abs
 dart compile exe bin/benchmark.dart -o /tmp/abs_benchmark && /tmp/abs_benchmark
 ```
 
