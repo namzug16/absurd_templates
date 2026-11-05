@@ -1,8 +1,20 @@
 # Absurd Templates
 
-HTML-first templates for Dart. `abs` compiles a directory of `.html` files
-into **one self-contained Dart file** with typed fragment functions and its
-own `Fragment` type. No runtime package needed.
+HTML-first templates for Dart. `abs` is a CLI that compiles a directory of
+`.html` files into typed Dart functions.
+
+- [At a glance](#at-a-glance)
+- [Simple on purpose](#simple-on-purpose)
+- [Install](#install)
+- [Templates](#templates)
+- [Configure](#configure)
+- [Generated API](#generated-api)
+- [Example](#example)
+- [Agent skill](#agent-skill)
+- [Checking templates](#checking-templates)
+- [Developing abs](#developing-abs)
+- [Benchmark](#benchmark)
+- [Vendor instead of installing](#vendor-instead-of-installing)
 
 ## At a glance
 
@@ -39,12 +51,32 @@ Run `abs` and call the generated function from Dart:
 ```dart
 import 'generated/html.dart';
 
-final String html = Html.pages.users(
+final String html = Fragments.pages.users(
   users: [(name: 'Ada', active: true), (name: 'Grace', active: false)],
 ).toHtml();
 ```
 
 Dart passes only data; the page picks its own layout.
+
+## Simple on purpose
+
+Absurd Templates is extremely simple and constrained. It does not invent a
+pseudo language inside your HTML. Templates are plain HTML plus a handful of
+`x-` tags, `{{ }}` and a few attribute forms; anything that needs real logic
+is computed in Dart and passed in as a typed prop. Your editor, your
+formatter, your browser, and your agent already understand everything else.
+
+The small surface is the point. As Arun puts it in
+[The creative power of constraints](https://arun.is/blog/creative-power-constraints/):
+
+> With just the right amount of constraints, creativity becomes almost an
+> inevitability.
+
+Every feature a template language adds is another place for complexity to
+hide, and [complexity *very*, *very* bad](https://grugbrain.dev/#grug-on-complexity)
+
+So abs says no to expressions, filters, macros and inheritance chains, and
+keeps the logic in Dart, where the type checker can see it.
 
 ## Install
 
@@ -71,6 +103,80 @@ make install PREFIX=/usr/local # or anywhere else
 
 `make uninstall` removes it again; `make` lists the other commands.
 
+## Templates
+
+Every template starts with `<x-props>` and is plain HTML plus these tags:
+
+- `<x-props name="Type" ...>`: declares the template's parameters, one
+  attribute per prop, its value a Dart type. Must come first.
+- `<x-for in as [index-from index-as]>`: renders its children once per item
+  of the list `in`, named `as`.
+- `<x-if case>`: renders its children when `case` is `true`.
+- `<x-if-not case>`: renders its children when `case` is `false`.
+- `<x-fragment template ...props>`: renders another template, by its path
+  from the input directory starting with `/`.
+- `<x-slot name>`: inside `<x-fragment>`, passes its children as the `name`
+  prop.
+
+Values and attributes:
+
+- `{{ value }}` inserts a declared variable or its fields (`user.name`,
+  `pair.$1`), never other Dart code: compute values in Dart.
+- `{{ }}` escapes text, inserts `Fragment` values as HTML, renders `null` as
+  nothing and lists item by item.
+- Escaping does not make URLs safe: check `href`, `src` and `action` values
+  in Dart.
+- `{{ }}` cannot go inside `<script>` or `<style>`: use a `data-` attribute.
+- Nullable props are optional parameters, all others are `required`.
+- `<x-fragment>` props: `label="Users"` passes a `String`,
+  `count="{{ users.length }}"` passes the value as it is, an omitted
+  nullable prop passes `null`.
+- `?condition:attribute` renders the attribute only when `condition` is
+  `true`, `?!condition:attribute` only when it is `false`.
+- `...attributes` writes every entry of a `Map<String, String>` as
+  attributes; `?condition:...attributes` only when `condition` is `true`.
+- An attribute cannot be both plain and conditional
+  (`class="btn" ?isActive:class="active"`): combine it in Dart.
+- A directive tag alone on its line is removed with that line; directives
+  inside `<!-- -->` are left alone.
+
+A full template, `fragments/pages/users.html`:
+
+```html
+<x-props
+  title="String"
+  users="List<({String name, bool active})>"
+  isLoading="bool"
+  extraAttributes="Map<String, String>?"
+  footer="Fragment?"
+></x-props>
+
+<x-fragment template="/layout/primary.html" title="{{ title }}">
+  <x-slot name="content">
+    <section ...extraAttributes>
+      <h1>{{ title }}</h1>
+      <x-fragment template="/ui/badge.html" label="Users" count="{{ users.length }}" />
+
+      <x-if case="isLoading">
+        <p>Loading…</p>
+      </x-if>
+      <x-if-not case="isLoading">
+        <ol>
+          <x-for in="users" as="user" index-from="1" index-as="number">
+            <li ?user.active:class="active" ?!user.active:class="idle">
+              {{ number }}. {{ user.name }}
+            </li>
+          </x-for>
+        </ol>
+      </x-if-not>
+
+      <button ?isLoading:disabled>Refresh</button>
+      {{ footer }}
+    </section>
+  </x-slot>
+</x-fragment>
+```
+
 ## Configure
 
 `abs.yaml` in your project root. `abs init` creates it with comments that
@@ -79,7 +185,7 @@ explain every option:
 ```yaml
 input: fragments              # required, scanned recursively for .html
 output: lib/generated/html.dart # required
-class: Html                   # optional, defaults to Fragments
+class: Fragments              # optional, defaults to Fragments
 ```
 
 abs.yaml holds only these top-level keys, with plain or quoted text values
@@ -87,188 +193,19 @@ and `#` comments; other YAML features are rejected with the line they are on.
 
 Run `abs` to generate the output file.
 
-## Checking templates
-
-```sh
-abs check                              # every template
-abs check fragments/pages/users.html  # only these files
-```
-
-`abs check` writes nothing. It reports syntax errors, naming conflicts and
-Dart errors such as unknown types, undefined names and typos in fields, all
-mapped back to the template, and suggests the closest name for a misspelled
-template, prop or variable. It warns about props a template never uses. It
-exits with 1 when there are errors, not warnings:
-
-```text
-error: The getter 'nmae' isn't defined for the type '({bool active, String name})'.
-  --> fragments/pages/users.html:12:16
-   |
-12 |         <li>{{ user.nmae }}</li>
-   |                ^
-
-abs check: 1 error and 0 warnings in 1 template
-```
-
-Every statement in the generated file that comes from template code ends in
-a `// fragments/pages/users.html:12:16` comment, so errors reported against
-the generated file also lead back to the template.
-
-## Templates
-
-```html
-<x-props
-  title="String"
-  users="List<({String name, bool active})>"
-  footer="Fragment?"
-></x-props>
-
-<section>
-  <h1>{{ title }}</h1>
-  <x-for in="users" as="user" index-from="1" index-as="number">
-    <x-if case="user.active">
-      <li>{{ number }}. {{ user.name }}</li>
-    </x-if>
-  </x-for>
-  {{ footer }}
-</section>
-```
-
-- `<x-props>` must come first; attribute = parameter name, value = Dart type,
-  written as plain Dart (`List<String>`, never `List&lt;String>`). Nullable
-  types become optional parameters, all others are `required`.
-- `{{ }}`, `in="..."` and `case="..."` accept only a declared variable or its
-  fields (`title`, `user.name`, `pair.$1`), never other Dart code: compute
-  values in Dart and pass them in as props.
-- `{{ value }}` escapes values; `Fragment` values are inserted as HTML; `null`
-  renders nothing, so `{{ footer }}` handles an optional `Fragment?`; lists
-  such as `List<Fragment>` render each item in order.
-- Escaping makes values safe as HTML text and inside quoted attributes, not
-  as URLs: `href="{{ url }}"` with `javascript:alert(1)` still runs code.
-  Check URLs used in `href`, `src` or `action` in Dart before passing them in.
-- `{{ }}` cannot go inside `<script>` or `<style>`, where HTML escaping does
-  not make values safe as code. Put the value in a quoted `data-` attribute
-  and read it from the script.
-- `<x-for in as [index-from index-as]>` (`index-from` is the first index,
-  such as `0` or `1`), `<x-if case>` and `<x-if-not case>`
-  render only their children; `<x-if-not>` renders them when `case` is
-  `false`, so it is the `else` of an `<x-if>` on the same value.
-  A directive tag alone on its line is removed together with that line.
-- Directives inside `<!-- -->` are left alone.
-
-### Rendering another template
-
-```html
-<x-fragment template="/ui/badge.html" label="Users" count="{{ users.length }}" />
-```
-
-`<x-fragment>` renders the template named by `template`, a path from the
-input directory starting with `/`. Every other attribute is one of its
-props, so no template can have a prop named `template`:
-
-- `label="Users"` passes the text as a `String`.
-- `count="{{ users.length }}"` passes the value as it is, so `int`,
-  `Fragment` and list props work. Quote it, and write only the `{{ }}`:
-  build mixed text such as `"Hi {{ name }}"` in Dart.
-- Omit nullable props to pass `null`.
-
-End it with `/>`, or close it with `</x-fragment>` to pass markup with
-`<x-slot>`:
-
-```html
-<x-fragment template="/layout/primary.html" title="{{ title }}">
-  <x-slot name="content">
-    <h1>{{ title }}</h1>
-    <x-fragment template="/ui/badge.html" label="Users" count="{{ users.length }}" />
-  </x-slot>
-</x-fragment>
-```
-
-`<x-slot name="content">` passes its children as the `content` prop, which
-must be a `Fragment` or `Fragment?`. Inside a slot you use the variables of
-the template you are writing, not the props of the one being rendered.
-`<x-fragment>` may hold only `<x-slot>` tags and whitespace, and each prop is
-passed once, as an attribute or a slot.
-
-`abs check` reports unknown templates, missing or unknown props and wrong
-types at the attribute or slot. A template cannot render itself, directly or
-through others.
-
-### Conditional attributes
-
-```html
-<button
-  ?isLoading:disabled
-  ?hasTooltip:title="{{ tooltip }}"
-  ?isActive:class="active"
-  ?!isActive:class="idle"
->
-```
-
-`?condition:attribute` renders the attribute, with its value and the
-whitespace before it, only when `condition` is `true`; `?!condition:attribute`
-only when it is `false`. The condition is a `bool` variable or field like
-`case`. The value works like any attribute value: plain text or quoted
-`{{ }}`. Conditional attributes may share a name, like `class` above.
-
-`<x-if>` cannot go inside an HTML tag, because the template would be invalid
-HTML, and an attribute that is both plain and conditional, such as
-`class="btn" ?isActive:class="active"`, is an error, because browsers keep
-only the first. Compute the combined value in Dart instead.
-
-### Extra attributes
-
-```html
-<x-props
-  extraAttributes="Map<String, String>?"
-  options="List<({String label, bool isSelected})>"
-  selectedAttributes="Map<String, String>"
-></x-props>
-
-<div class="combobox" ...extraAttributes>
-  <x-for in="options" as="option">
-    <p role="option" ?option.isSelected:...selectedAttributes>{{ option.label }}</p>
-  </x-for>
-</div>
-```
-
-`...attributes` writes every entry of a `Map<String, String>` as
-` name="value"`, in map order with values escaped; an empty or `null` map
-writes nothing. `?condition:...attributes` and `?!condition:...attributes`
-write it only when the condition is `true` or `false`.
-
-Map keys are only known when rendering, so rendering throws an
-`ArgumentError` when a key is not a valid attribute name, or when the tag
-renders that attribute twice: a key that is also written in the tag, comes
-from an earlier map, or matches a conditional attribute whose condition
-holds. `?a:...m ?!a:class="x"` is fine even if `m` has `class`, since only
-one of them renders. Pass a class to merge as its own prop instead:
-`class="combobox {{ extraClass }}"`. Keys are written as they are, and
-`onclick` is a valid one, so never take them from user input.
-
-A spread only goes inside an HTML tag: `<p>...attributes</p>` (when
-`attributes` is declared) and `...attributes` on an `<x-…>` tag are errors.
-Code in `<script>` and `<style>` keeps its own `...`.
-
 ## Generated API
 
-`fragments/pages/user-page.html` becomes `Html.pages.userPage(...)`, returning
-a `Fragment`. Call `.toHtml()` to render. Each function's doc comment names
-its template, so hovering a call in your editor shows where to edit it. Name collisions (after camelCase
-conversion) and file/directory clashes are errors.
+All templates become functions under one class, `Fragments` unless `class`
+in `abs.yaml` says otherwise, grouped by directory:
+`fragments/pages/user-page.html` becomes `Fragments.pages.userPage(...)`.
+Each returns a `Fragment`; call `.toHtml()` to render it.
 
 ```dart
-final String html = Html.pages.users(users: users).toHtml();
+final String html = Fragments.pages.users(users: users).toHtml();
 ```
 
-Compose layouts and shared parts in the templates with `<x-fragment>` and
-`<x-slot>`, so Dart calls only the page and passes it data.
-
-All templates go into that one file, which can grow to thousands of lines.
-It is output, not something to read: templates and `abs check` errors are
-where you work. To keep it out of the way in GitHub pull requests (collapsed
-in diffs, left out of language stats), mark it as generated in
-`.gitattributes` at the root of your repository:
+Mark the generated file as generated in `.gitattributes` to collapse it in
+pull requests:
 
 ```
 lib/generated/html.dart linguist-generated=true
@@ -284,22 +221,36 @@ that renders them:
 cd example && abs && dart main.dart
 ```
 
-## Coding agents
-
-[`skills/absurd-templates`](skills/absurd-templates/SKILL.md) is an agent
-skill that teaches template syntax, the `abs check` loop and how to fix its
-errors. `abs guide` prints it, matching the version of abs that runs it, a
-vendored copy included. Install it for Claude Code with:
+## Agent skill
 
 ```sh
-mkdir -p .claude/skills/absurd-templates
-abs guide > .claude/skills/absurd-templates/SKILL.md
+npx skills add namzug16/absurd_templates
 ```
 
-(or under `~/.claude/skills/` for every project). Run the same commands
-after updating abs to refresh it. Other agents can read the output as plain
-instructions, or be told to run `abs guide` (`dart run tool/abs.dart guide`
-when vendored).
+```sh
+# Scans immediate dependencies and discovers available skills.
+dart run skills@ get
+```
+
+## Checking templates
+
+```sh
+abs check                              # every template
+abs check fragments/pages/users.html  # only these files
+```
+
+`abs check` writes nothing. It reports syntax errors and Dart errors mapped
+back to the template, warns about unused props, and exits with 1 on errors:
+
+```text
+error: The getter 'nmae' isn't defined for the type '({bool active, String name})'.
+  --> fragments/pages/users.html:12:16
+   |
+12 |         <li>{{ user.nmae }}</li>
+   |                ^
+
+abs check: 1 error and 0 warnings in 1 template
+```
 
 ## Developing abs
 
