@@ -4,6 +4,48 @@ HTML-first templates for Dart. `abs` compiles a directory of `.html` files
 into **one self-contained Dart file** with typed fragment functions and its
 own `Fragment` type. No runtime package needed.
 
+## At a glance
+
+A layout, `fragments/layout/primary.html`:
+
+```html
+<x-props title="String" content="Fragment"></x-props>
+
+<!DOCTYPE html>
+<html lang="en">
+  <head><title>{{ title }}</title></head>
+  <body>{{ content }}</body>
+</html>
+```
+
+A page that renders inside it, `fragments/pages/users.html`:
+
+```html
+<x-props users="List<({String name, bool active})>"></x-props>
+
+<x-fragment template="/layout/primary.html" title="Users">
+  <x-slot name="content">
+    <ul>
+      <x-for in="users" as="user">
+        <li ?user.active:class="active">{{ user.name }}</li>
+      </x-for>
+    </ul>
+  </x-slot>
+</x-fragment>
+```
+
+Run `abs` and call the generated function from Dart:
+
+```dart
+import 'generated/html.dart';
+
+final String html = Html.pages.users(
+  users: [(name: 'Ada', active: true), (name: 'Grace', active: false)],
+).toHtml();
+```
+
+Dart passes only data; the page picks its own layout.
+
 ## Install
 
 ```sh
@@ -14,22 +56,6 @@ dart pub global activate --source path .
 ```
 
 `make uninstall` removes it again; `make` lists the other commands.
-
-## Vendor instead of installing
-
-To use abs without installing it, copy it into your project as one Dart file
-that needs only the Dart SDK, no packages:
-
-```sh
-abs vendor                 # writes tool/abs.dart; or: abs vendor path/to/file.dart
-dart run tool/abs.dart     # works exactly like abs: check, init, help...
-```
-
-Commit `tool/abs.dart`. Its header records the abs version and a checksum.
-Running `abs vendor` again with a newer abs updates the copy. It never
-overwrites a file it did not write, a copy edited by hand, or a copy from a
-newer abs. `abs version` (or `dart run tool/abs.dart version`) prints the
-version.
 
 ## Configure
 
@@ -138,7 +164,8 @@ End it with `/>`, or close it with `</x-fragment>` to pass markup with
 ```html
 <x-fragment template="/layout/primary.html" title="{{ title }}">
   <x-slot name="content">
-    <main>{{ body }}</main>
+    <h1>{{ title }}</h1>
+    <x-fragment template="/ui/badge.html" label="Users" count="{{ users.length }}" />
   </x-slot>
 </x-fragment>
 ```
@@ -217,12 +244,11 @@ its template, so hovering a call in your editor shows where to edit it. Name col
 conversion) and file/directory clashes are errors.
 
 ```dart
-final page = Html.layout.primary(
-  title: 'Users',
-  content: Html.pages.users(title: 'Users', users: users),
-);
-final String html = page.toHtml();
+final String html = Html.pages.users(users: users).toHtml();
 ```
+
+Compose layouts and shared parts in the templates with `<x-fragment>` and
+`<x-slot>`, so Dart calls only the page and passes it data.
 
 All templates go into that one file, which can grow to thousands of lines.
 It is output, not something to read: templates and `abs check` errors are
@@ -274,3 +300,19 @@ releasing, so vendored copies can tell they are out of date.
 
 [`benchmark/`](benchmark) renders the same pages with abs, Jinja and Mustache
 and prints how long each takes; see its README for results.
+
+## Vendor instead of installing
+
+To use abs without installing it, copy it into your project as one Dart file
+that needs only the Dart SDK, no packages:
+
+```sh
+abs vendor                 # writes tool/abs.dart; or: abs vendor path/to/file.dart
+dart run tool/abs.dart     # works exactly like abs: check, init, help...
+```
+
+Commit `tool/abs.dart`. Its header records the abs version and a checksum.
+Running `abs vendor` again with a newer abs updates the copy. It never
+overwrites a file it did not write, a copy edited by hand, or a copy from a
+newer abs. `abs version` (or `dart run tool/abs.dart version`) prints the
+version.
