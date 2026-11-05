@@ -1,7 +1,7 @@
 import 'generated/html.dart';
 
 void main() {
-  final users = Html.pages.users(
+  final users = Fragments.pages.users(
     title: 'Users',
     users: [
       (name: 'Ada', active: true),
@@ -10,9 +10,9 @@ void main() {
     ],
   );
 
-  final page = Html.pages.user(name: 'Ada', surname: 'Lovelace', active: true);
+  final page = Fragments.pages.user(name: 'Ada', surname: 'Lovelace', active: true);
 
   print(users.toHtml());
   print(page.toHtml());
-  print(Html.pages.admin.dashboard(visits: 42).toHtml());
+  print(Fragments.pages.admin.dashboard(visits: 42).toHtml());
 }

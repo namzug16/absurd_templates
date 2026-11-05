@@ -1,3 +1,2 @@
 input: fragments
 output: generated/html.dart
-class: Html
