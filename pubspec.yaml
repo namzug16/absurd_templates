@@ -1,6 +1,6 @@
 name: abs
 description: Absurd Templates - HTML-first templates for Dart. A CLI that compiles .html files into typed Dart functions.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/namzug16/absurd_templates
 
 environment:

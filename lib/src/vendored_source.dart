@@ -2019,7 +2019,7 @@ const vendoredSource =
     ");\n"
     "\n"
     "/// Version of abs; keep it equal to the version in pubspec.yaml.\n"
-    "const absVersion = '0.1.0';\n"
+    "const absVersion = '0.1.1';\n"
     "\n"
     "/// The help text; [canVendor] is false in a vendored copy.\n"
     "String _usage({required bool canVendor}) =>\n"

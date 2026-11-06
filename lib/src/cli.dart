@@ -18,7 +18,7 @@ final _configLinePattern = RegExp(
 );
 
 /// Version of abs; keep it equal to the version in pubspec.yaml.
-const absVersion = '0.1.0';
+const absVersion = '0.1.1';
 
 /// The help text; [canVendor] is false in a vendored copy.
 String _usage({required bool canVendor}) =>
