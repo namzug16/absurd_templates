@@ -1,3 +1,0 @@
-input: templates/absurd
-output: lib/absurd.dart
-class: Bench

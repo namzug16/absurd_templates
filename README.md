@@ -13,7 +13,6 @@ HTML-first templates for Dart. `abs` is a CLI that compiles a directory of
 - [Agent skill](#agent-skill)
 - [Checking templates](#checking-templates)
 - [Developing abs](#developing-abs)
-- [Benchmark](#benchmark)
 - [Vendor instead of installing](#vendor-instead-of-installing)
 
 ## At a glance
@@ -261,11 +260,6 @@ you do), and bump `version` in
 `pubspec.yaml` together with `absVersion` in `lib/src/cli.dart` before
 releasing, so vendored copies can tell they are out of date. `make publish`
 rebuilds them, runs `make check` and publishes the package to pub.dev.
-
-## Benchmark
-
-[`benchmark/`](benchmark) renders the same pages with abs, Jinja and Mustache
-and prints how long each takes; see its README for results.
 
 ## Vendor instead of installing
 
